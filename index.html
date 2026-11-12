@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#133484">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Camioneta de Servicios Túnel · OHLA Chile</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <span class="marca"><img src="logo.png" alt="OHLA Chile" onerror="this.remove()"><span><small>OHLA Chile</small><strong>Camioneta de Servicios Túnel</strong></span></span>
+  <span class="cuenta">
+    <a class="link" href="admin.html" id="link-jefes" hidden>Jefes</a>
+    <button class="link" id="salir" hidden>Salir</button>
+  </span>
+</header>
+
+<main>
+  <div class="card instalar" id="instalar" hidden>
+    <strong>📲 Instala la app en tu teléfono</strong>
+    <p id="instalar-txt"></p>
+    <button class="primario" id="instalar-btn" hidden>Instalar app</button>
+    <button class="secundario" id="instalar-cerrar">Ahora no</button>
+  </div>
+  <p class="alerta" id="aviso" hidden>No se pudo guardar en este celular. Libera espacio y no cierres la app hasta enviar el turno.</p>
+  <p class="ayuda" id="pendientes" hidden></p>
+  <section id="vista-acceso" class="vista" hidden>
+    <h2>Entrar</h2>
+    <form id="form-acceso" class="card">
+      <label>Usuario, o nombre y apellido
+        <input name="nombre" type="text" autocomplete="username" autocapitalize="none" required placeholder="Ej.: Pedro Soto">
+      </label>
+      <label>Clave (6 números)
+        <input name="clave" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" required>
+      </label>
+      <button type="submit" class="primario" value="entrar">Entrar</button>
+      <button type="submit" class="secundario" value="crear">Crear cuenta</button>
+      <p class="msg" id="msg-acceso"></p>
+      <p class="ayuda">¿Primera vez? Escribe tu nombre, inventa una clave de 6 números y toca «Crear cuenta». Un administrador (Ian Navarro o Cristian Contreras) debe autorizarla antes de que puedas usar la app.</p>
+    </form>
+  </section>
+
+  <section id="vista-clave" class="vista" hidden>
+    <h2>Cambia tu clave</h2>
+    <form id="form-clave" class="card">
+      <p>Entraste con la clave inicial. Antes de seguir, crea una clave propia de 6 números que solo tú conozcas.</p>
+      <label>Clave nueva (6 números)
+        <input name="nueva" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" required>
+      </label>
+      <label>Repite la clave nueva
+        <input name="repetida" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" required>
+      </label>
+      <button type="submit" class="primario">Guardar clave y continuar</button>
+      <p class="msg" id="msg-clave"></p>
+    </form>
+  </section>
+
+  <section id="vista-espera" class="vista" hidden>
+    <h2>Cuenta en espera</h2>
+    <div class="card">
+      <p id="msg-espera"></p>
+      <p class="ayuda">Avísale a Ian Navarro o a Cristian Contreras para que autoricen tu cuenta. Cuando lo hagan, toca el botón.</p>
+      <button class="primario" id="revisar">Ya me autorizaron, revisar</button>
+    </div>
+  </section>
+
+  <section id="vista-inicio" class="vista" hidden>
+    <p class="ayuda" id="quien"></p>
+    <h2>Inicio de turno</h2>
+    <form id="form-inicio" class="card">
+      <label>Turno
+        <select name="turno" id="turno" required></select>
+      </label>
+      <label>Nombre del chofer
+        <input name="chofer" type="text" required readonly>
+      </label>
+      <p class="ayuda" id="km-anterior"></p>
+      <label>Kilometraje inicial
+        <input name="kmInicio" type="number" inputmode="numeric" min="1" required>
+      </label>
+      <label>Foto del odómetro (inicio)
+        <input name="fotoInicio" type="file" accept="image/*">
+      </label>
+      <p class="ayuda" id="foto-inicio-ok" hidden>Foto del odómetro ya guardada ✓ (puedes reemplazarla)</p>
+      <button type="submit" class="primario">Continuar</button>
+      <p class="msg" id="msg-inicio"></p>
+    </form>
+    <button class="secundario" id="recompartir-ultimo" hidden>Enviar de nuevo por WhatsApp el último turno cerrado</button>
+    <button class="secundario" id="ver-mios">Mis turnos</button>
+  </section>
+
+  <section id="vista-estado" class="vista" hidden>
+    <h2>Estado de la camioneta</h2>
+    <p class="ayuda">Completa el check list y toma una foto por lado.</p>
+    <p class="alerta" id="alertas-turno" hidden></p>
+    <div class="card" id="checklist">
+      <strong>Check list de la camioneta</strong>
+      <p class="ayuda" id="checklist-estado"></p>
+      <button class="secundario" id="abrir-checklist">Completar check list</button>
+    </div>
+    <div id="panos" class="grid-panos"></div>
+    <div class="card">
+      <strong>Salidas de faena</strong>
+      <div class="lista-salidas"></div>
+      <button class="secundario" data-ir="vista-salida">Registrar salida de faena</button>
+    </div>
+    <div class="card" id="combustible">
+      <strong>Carga de combustible</strong>
+      <label><input type="checkbox" name="cargoCombustible"> Se cargó combustible en este turno</label>
+      <div id="carga-detalle" hidden>
+        <label>Litros cargados <input name="litros" type="number" inputmode="decimal" min="0" step="0.1"></label>
+        <label>Foto del medidor de combustible <input name="fotoCombustible" type="file" accept="image/*"></label>
+        <p class="ayuda" id="foto-combustible-ok" hidden>Foto del medidor guardada ✓</p>
+      </div>
+    </div>
+    <fieldset class="card" id="limpieza">
+      <legend>Limpieza (1 o 2 veces por semana)</legend>
+      <label><input type="checkbox" name="limpieza"> Limpié la camioneta en este turno</label>
+    </fieldset>
+    <p class="msg" id="msg-estado"></p>
+    <div class="fila">
+      <button class="secundario" id="volver-inicio">Corregir inicio</button>
+      <button class="primario" id="continuar-estado">Continuar</button>
+    </div>
+  </section>
+
+  <section id="vista-checklist" class="vista" hidden>
+    <h2>Check list de la camioneta</h2>
+    <p class="ayuda">Revisa la camioneta y responde cada ítem: SI, NO o N.A. (no aplica). Al terminar un grupo se abre el siguiente.</p>
+    <p class="ayuda" id="avance-checklist"></p>
+    <div id="lista-checklist"></div>
+    <p class="alerta" id="aviso-no" hidden></p>
+    <div class="card">
+      <label>Observaciones u otro (obligatorio si marcaste algún NO) <textarea id="checklist-obs" rows="2"></textarea></label>
+    </div>
+    <button class="primario" id="cerrar-checklist">Guardar y volver</button>
+  </section>
+
+  <section id="vista-cierre" class="vista" hidden>
+    <h2>Novedades y cierre</h2>
+    <div class="card">
+      <strong>Salidas de faena</strong>
+      <div class="lista-salidas"></div>
+      <button class="secundario" data-ir="vista-salida">Registrar salida de faena</button>
+    </div>
+    <form id="form-cierre" class="card">
+      <p>Km inicio: <strong id="km-inicio-txt"></strong></p>
+      <label>Foto del odómetro final (tómala al terminar; no puede tener más de 5 minutos)
+        <input name="fotoFinal" type="file" accept="image/*">
+      </label>
+      <label>Kilometraje final
+        <input name="kmFinal" type="number" inputmode="numeric">
+      </label>
+      <p>Recorrido: <strong id="recorrido-txt">—</strong></p>
+      <label>Novedades
+        <textarea name="novedad" rows="3" placeholder="Sin novedades"></textarea>
+      </label>
+      <label>Foto de novedad (opcional)
+        <input name="fotoNovedad" type="file" accept="image/*">
+      </label>
+      <p class="msg" id="msg-cierre"></p>
+      <button type="submit" class="primario verde">Cerrar turno y enviar por WhatsApp</button>
+    </form>
+    <button class="secundario" data-ir="vista-estado">Volver</button>
+  </section>
+
+  <section id="vista-salida" class="vista" hidden>
+    <h2>Salida de faena</h2>
+    <p class="ayuda">Solo con autorización de un jefe (Raúl Moya, Julio Cerda, Ian Navarro) o de Cristian Contreras. Indica el motivo.</p>
+    <form id="form-salida" class="card">
+      <label>Autorizada por
+        <select name="autorizadaPor" required>
+          <option value="">Seleccionar</option>
+          <option>Raúl Moya</option>
+          <option>Julio Cerda</option>
+          <option>Ian Navarro</option>
+          <option>Cristian Contreras</option>
+        </select>
+      </label>
+      <label>Motivo de la salida
+        <textarea name="motivo" rows="3" required placeholder="Ej.: retiro de material en bodega central"></textarea>
+      </label>
+      <p class="msg" id="msg-salida"></p>
+      <button type="submit" class="primario">Registrar salida</button>
+    </form>
+    <button class="secundario" id="volver-salida">Volver</button>
+  </section>
+
+  <section id="vista-mios" class="vista" hidden>
+    <h2>Mis turnos</h2>
+    <p class="ayuda">Solo ves los turnos cerrados desde este celular. Los jefes ven los de todos.</p>
+    <div id="lista-mios"></div>
+    <button class="secundario" data-ir="vista-inicio">Volver</button>
+  </section>
+
+  <section id="vista-fin" class="vista" hidden>
+    <h2>Turno cerrado</h2>
+    <p class="ayuda">Se abrió WhatsApp con el mensaje listo. Elige el grupo de la camioneta y toca enviar. Si no se abrió, usa el botón de abajo.</p>
+    <p class="ayuda" id="estado-fin"></p>
+    <button class="primario" id="recompartir">Enviar de nuevo por WhatsApp</button>
+    <button class="secundario" id="nuevo-turno">Nuevo turno</button>
+  </section>
+</main>
+
+<script src="instalar.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

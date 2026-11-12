@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jefes · Camioneta de Servicios Túnel · OHLA Chile</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .tabla-wrap { overflow-x: auto; background: #fff; border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e3e6ea; vertical-align: top; }
+  th { color: var(--gris); font-weight: 600; }
+  .fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fila2 > label { min-width: 0; }
+  .fila2 select, .fila2 input { width: 100%; min-width: 0; }
+  .kpis { grid-template-columns: repeat(3, 1fr) !important; }
+  h2 { margin-top: 20px; }
+  /* Gráficos: una sola serie por gráfico, por eso no llevan leyenda. */
+  .bh { display: grid; grid-template-columns: 70px 1fr auto; align-items: center; gap: 10px; font-size: 14px; padding: 4px 0; }
+  .bh-pista { height: 16px; }
+  .bh-barra { height: 100%; min-width: 2px; background: #133484; border-radius: 0 4px 4px 0; }
+  .bh-v { font-variant-numeric: tabular-nums; color: #222; min-width: 64px; text-align: right; }
+  .col-area { position: relative; height: 140px; display: flex; align-items: flex-end; gap: 2px; border-bottom: 1px solid #c9ced4; }
+  .col { flex: 1; height: 100%; display: flex; align-items: flex-end; background: none; border: 0; padding: 0; min-height: 0; border-radius: 0; cursor: pointer; }
+  .col-b { width: 100%; max-width: 28px; margin: 0 auto; background: #133484; border-radius: 4px 4px 0 0; }
+  .col:hover .col-b, .col:focus-visible .col-b, .col.activa .col-b { background: #0e2763; }
+  .col-max { position: absolute; top: 0; left: 0; font-size: 12px; color: var(--gris); border-top: 1px dashed #d9dde2; width: 100%; padding-top: 2px; pointer-events: none; }
+  .col-eje { display: flex; justify-content: space-between; font-size: 12px; color: var(--gris); margin-top: 4px; }
+  .col-det { font-size: 14px; color: #222; min-height: 1.3em; margin: 6px 0 0; }
+  td button { min-height: 34px; padding: 0 10px; font-size: 13px; margin: 0 4px 4px 0; border-radius: 8px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="marca"><img src="logo.png" alt="OHLA Chile" onerror="this.remove()"><span><small>OHLA Chile</small><strong>Camioneta de Servicios Túnel · Jefes</strong></span></span>
+  <button class="link" id="salir" hidden>Salir</button>
+</header>
+
+<main>
+  <section id="login" class="card">
+    <form id="form-login">
+      <label>Usuario, o nombre y apellido <input name="nombre" type="text" autocomplete="username" autocapitalize="none" required></label>
+      <label>Clave (6 números) <input name="clave" type="password" inputmode="numeric" maxlength="6" required></label>
+      <button type="submit" class="primario">Entrar</button>
+      <p class="msg" id="msg-login"></p>
+      <p class="ayuda">Es la misma cuenta de la app. Esta página es para jefes y administradores.</p>
+    </form>
+  </section>
+
+  <section id="panel" hidden>
+    <div class="fila">
+      <button class="secundario" id="exportar">Exportar CSV</button>
+      <button class="secundario" id="recargar">Actualizar</button>
+    </div>
+    <p class="ayuda" id="rol"></p>
+    <p class="msg" id="msg-panel"></p>
+
+    <div class="card" id="filtros">
+      <strong>Filtrar</strong>
+      <div class="fila2">
+        <label>Turno <select id="f-turno"></select></label>
+        <label>Chofer <select id="f-chofer"></select></label>
+      </div>
+      <div class="fila2">
+        <label>Desde <input type="date" id="f-desde"></label>
+        <label>Hasta <input type="date" id="f-hasta"></label>
+      </div>
+      <button type="button" class="secundario" id="limpiar">Quitar filtros</button>
+    </div>
+
+    <h2>Estadísticas</h2>
+    <div class="kpis" id="kpis"></div>
+    <p class="ayuda">El rendimiento es km recorridos dividido por litros cargados en el período. Es más confiable en períodos largos (un mes), porque una carga no se gasta en el mismo turno.</p>
+
+    <h2>Gráficos</h2>
+    <div class="card">
+      <strong>Kilometraje por turno</strong>
+      <div class="barras" id="g-km-turno"></div>
+    </div>
+    <div class="card">
+      <strong>Combustible cargado por turno</strong>
+      <div class="barras" id="g-litros-turno"></div>
+    </div>
+    <div class="card">
+      <strong>Kilometraje por día</strong>
+      <div class="columnas" id="g-km-dia"></div>
+    </div>
+    <div class="card">
+      <strong>Combustible cargado por día</strong>
+      <div class="columnas" id="g-litros-dia"></div>
+    </div>
+
+    <div class="card" id="usuarios" hidden>
+      <strong>Usuarios y roles</strong>
+      <p class="ayuda">Toda cuenta nueva queda pendiente, sin acceso. Solo los administradores la autorizan, eligiendo su rol.</p>
+      <p class="alerta" id="pendientes-aviso" hidden></p>
+      <div class="tabla-wrap">
+        <table><thead><tr><th>Nombre</th><th>Rol</th></tr></thead><tbody id="tbody-usuarios"></tbody></table>
+      </div>
+      <p class="msg" id="msg-usuarios"></p>
+    </div>
+
+    <div class="card" id="espacio" hidden>
+      <strong>Espacio (plan gratuito)</strong>
+      <p class="ayuda" id="espacio-txt"></p>
+      <label>Borrar turnos anteriores al <input type="date" id="purgar-fecha"></label>
+      <button type="button" class="secundario" id="purgar">Borrar turnos antiguos y sus fotos</button>
+      <p class="msg" id="msg-purgar"></p>
+    </div>
+
+    <h2>Por chofer</h2>
+    <div class="tabla-wrap">
+      <table>
+        <thead><tr><th>Chofer</th><th>Turnos</th><th>Km</th><th>Km por turno</th><th>Litros</th><th>Salidas</th><th>Limpiezas</th><th>Con NO</th><th>Alertas</th></tr></thead>
+        <tbody id="tbody-chofer"></tbody>
+      </table>
+    </div>
+
+    <h2>Turnos</h2>
+    <div class="tabla-wrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Conductor</th><th>Km inicio</th><th>Km final</th><th>Recorrido</th><th>Novedad</th><th>Acciones</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <form id="form-editar" class="card" hidden>
+      <strong id="titulo-editar"></strong>
+      <label>Km final <input name="kmFinal" type="number" inputmode="numeric" required></label>
+      <label>Novedades <textarea name="novedad" rows="3"></textarea></label>
+      <div class="fila">
+        <button type="button" class="secundario" id="cancelar">Cancelar</button>
+        <button type="submit" class="primario">Guardar cambios</button>
+      </div>
+      <p class="msg" id="msg-editar"></p>
+    </form>
+  </section>
+</main>
+
+<script type="module">
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, collection, doc, getDocs, query, orderBy, limit, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { fb } from "./fb.js";
+import { contarChecklist, itemsConNo } from "./checklist.js";
+import { auth, entrar, asegurarPerfil, validar, mensajeError, salir, CLAVE_INICIAL, marcarCambioClave, debeCambiarClave } from "./cuenta.js";
+
+const db = initializeFirestore(fb, {});
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmtKm = (n) => Number(n || 0).toLocaleString("es-CL");
+const fecha = (iso) => iso ? new Date(iso).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short", hour12: false }) : "—";
+
+let turnos = [];
+let editando = null;
+let esAdmin = false; // los jefes solo ven y exportan
+let perfil = null;
+
+onAuthStateChanged(auth, async (u) => {
+  if (u && debeCambiarClave(u.uid)) { location.href = "index.html"; return; }
+  perfil = u ? await asegurarPerfil(db, u).catch(() => null) : null;
+  const dentro = !!perfil && ["jefe", "admin"].includes(perfil.rol);
+  esAdmin = dentro && perfil.rol === "admin";
+  if (u && !dentro) $("#msg-login").textContent = perfil ? (perfil.rol === "pendiente" ? `${perfil.nombre}: tu cuenta aún no está autorizada.` : `${perfil.nombre}: tu cuenta es de chofer y no tiene acceso a esta página.`) : "No se pudo cargar tu cuenta. Revisa la señal.";
+  $("#usuarios").hidden = !esAdmin;
+  if (esAdmin) cargarUsuarios();
+  $("#login").hidden = dentro;
+  $("#panel").hidden = !dentro;
+  $("#salir").hidden = !u;
+  $("#form-editar").hidden = true;
+  $("#rol").textContent = dentro ? (esAdmin ? "Administrador: puedes corregir y borrar turnos." : "Jefe: puedes ver todos los turnos y exportarlos.") : "";
+  if (dentro) cargar();
+});
+
+$("#form-login").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const msg = $("#msg-login");
+  const falta = validar(f.nombre.value, f.clave.value);
+  if (falta) { msg.textContent = falta; return; }
+  msg.textContent = "Entrando…";
+  try {
+    const conClaveInicial = f.clave.value === CLAVE_INICIAL;
+    const user = await entrar(f.nombre.value, f.clave.value);
+    if (conClaveInicial) { marcarCambioClave(user.uid); location.href = "index.html"; return; } // primero debe cambiar la clave inicial, en la app
+    f.reset();
+    msg.textContent = "";
+  } catch (err) {
+    msg.textContent = mensajeError(err);
+  }
+});
+$("#salir").addEventListener("click", () => salir());
+
+// ---------- Usuarios y roles (solo administradores) ----------
+const ROLES = { pendiente: "Pendiente (sin acceso)", chofer: "Chofer (solo sus turnos)", jefe: "Jefe (ve todo)", admin: "Administrador (poder absoluto)" };
+async function cargarUsuarios() {
+  const cuerpo = $("#tbody-usuarios");
+  try {
+    const snap = await getDocs(collection(db, "usuarios"));
+    const lista = snap.docs.map((d) => ({ uid: d.id, ...d.data() })).sort((a, b) => (b.rol === "pendiente") - (a.rol === "pendiente") || String(a.nombre).localeCompare(String(b.nombre), "es"));
+    const n = lista.filter((u) => u.rol === "pendiente").length;
+    $("#pendientes-aviso").hidden = !n;
+    $("#pendientes-aviso").textContent = n === 1 ? "1 cuenta espera tu autorización. Elige su rol para darle acceso." : `${n} cuentas esperan tu autorización. Elige su rol para darles acceso.`;
+    cuerpo.innerHTML = lista.map((u) => `
+      <tr><td>${esc(u.nombre)}${u.rol === "pendiente" ? " ⏳" : ""}</td>
+      <td>${u.uid === perfil.uid ? "Administrador (tú)" : `<select data-rol="${esc(u.uid)}" aria-label="Rol de ${esc(u.nombre)}">${Object.entries(ROLES).map(([v, n]) => `<option value="${v}" ${u.rol === v ? "selected" : ""}>${n}</option>`).join("")}</select>`}</td></tr>`).join("");
+  } catch {
+    cuerpo.innerHTML = `<tr><td colspan="2">No se pudo cargar la lista de usuarios.</td></tr>`;
+  }
+}
+$("#tbody-usuarios").addEventListener("change", async (e) => {
+  const uid = e.target.dataset.rol;
+  if (!uid) return;
+  const msg = $("#msg-usuarios");
+  try {
+    await updateDoc(doc(db, "usuarios", uid), { rol: e.target.value });
+    msg.textContent = "Rol actualizado. La persona lo verá al volver a abrir la app.";
+    cargarUsuarios();
+  } catch {
+    msg.textContent = "No se pudo cambiar el rol.";
+    cargarUsuarios();
+  }
+});
+$("#recargar").addEventListener("click", () => cargar());
+
+async function cargar() {
+  $("#msg-panel").textContent = "";
+  try {
+    const snap = await getDocs(query(collection(db, "turnos"), orderBy("creadoEn", "desc"), limit(1000)));
+    turnos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    llenarFiltros();
+    render();
+  } catch {
+    $("#msg-panel").textContent = "No tienes permiso para ver los turnos. Esta cuenta no está autorizada.";
+    turnos = [];
+    render();
+  }
+}
+
+// ---------- Filtros y estadísticas ----------
+const turnoDe = (t) => t.turno || String(t.conductor || "").split(" · ")[0] || "—";
+const choferDe = (t) => (t.chofer || String(t.conductor || "").split(" · ")[1] || "—").trim();
+const claveChofer = (t) => choferDe(t).toLocaleLowerCase("es").replace(/\s+/g, " "); // "Pedro Soto" = "pedro  soto"
+const diaDe = (t) => (t.fecha ? new Date(t.fecha).toLocaleDateString("sv-SE") : "");
+const litrosDe = (t) => (t.combustible?.cargo ? Number(t.combustible.litros) || 0 : 0);
+const dec = (n) => n.toLocaleString("es-CL", { maximumFractionDigits: 1 });
+
+function llenarFiltros() {
+  const opciones = (sel, pares, todos) => {
+    const actual = sel.value;
+    sel.innerHTML = `<option value="">${todos}</option>` + pares.map(([v, n]) => `<option value="${esc(v)}">${esc(n)}</option>`).join("");
+    if (pares.some(([v]) => v === actual)) sel.value = actual;
+  };
+  opciones($("#f-turno"), [...new Set(turnos.map(turnoDe))].sort().map((x) => [x, x]), "Todos los turnos");
+  const choferes = new Map(turnos.map((t) => [claveChofer(t), choferDe(t)]));
+  opciones($("#f-chofer"), [...choferes].sort((a, b) => a[1].localeCompare(b[1], "es")), "Todos los choferes");
+}
+
+function visibles() {
+  const ft = $("#f-turno").value, fc = $("#f-chofer").value, fd = $("#f-desde").value, fh = $("#f-hasta").value;
+  return turnos.filter((t) => (!ft || turnoDe(t) === ft) && (!fc || claveChofer(t) === fc) && (!fd || diaDe(t) >= fd) && (!fh || diaDe(t) <= fh));
+}
+
+function sumar(lista) {
+  const s = { turnos: lista.length, km: 0, litros: 0, cargas: 0, salidas: 0, alertas: 0, limpiezas: 0, ultimaLimpieza: "", conNo: 0 };
+  for (const t of lista) {
+    s.km += Number(t.recorrido) || 0;
+    s.litros += litrosDe(t);
+    s.cargas += t.combustible?.cargo ? 1 : 0;
+    s.salidas += (t.salidas || []).length;
+    if (itemsConNo(t.checklist).length) s.conNo++;
+    if (t.limpieza) { s.limpiezas++; if ((t.fecha || "") > s.ultimaLimpieza) s.ultimaLimpieza = t.fecha; }
+    s.alertas += (t.alertas || []).length ? 1 : 0;
+  }
+  return s;
+}
+
+function renderEstadisticas(lista) {
+  const s = sumar(lista);
+  const kpi = (nombre, valor) => `<div><span>${nombre}</span><strong>${valor}</strong></div>`;
+  $("#kpis").innerHTML = [
+    kpi("Turnos", s.turnos),
+    kpi("Km recorridos", fmtKm(s.km)),
+    kpi("Km por turno", s.turnos ? dec(s.km / s.turnos) : "—"),
+    kpi("Litros cargados", dec(s.litros)),
+    kpi("Rendimiento", s.litros ? `${dec(s.km / s.litros)} km/L` : "—"),
+    kpi("Cargas de combustible", s.cargas),
+    kpi("Salidas de faena", s.salidas),
+    kpi("Limpiezas", s.limpiezas),
+    kpi("Última limpieza", s.ultimaLimpieza ? new Date(s.ultimaLimpieza).toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit" }) : "—"),
+    kpi("Turnos con NO en check list", s.conNo),
+    kpi("Turnos con alerta de km", s.alertas),
+  ].join("");
+  const grupos = new Map();
+  for (const t of lista) {
+    const k = claveChofer(t);
+    if (!grupos.has(k)) grupos.set(k, { nombre: choferDe(t), lista: [] });
+    grupos.get(k).lista.push(t);
+  }
+  $("#tbody-chofer").innerHTML = [...grupos.values()].map((g) => ({ nombre: g.nombre, ...sumar(g.lista) })).sort((a, b) => b.km - a.km).map((g) => `
+    <tr><td>${esc(g.nombre)}</td><td>${g.turnos}</td><td>${fmtKm(g.km)}</td><td>${dec(g.km / g.turnos)}</td><td>${dec(g.litros)}</td><td>${g.salidas}</td><td>${g.limpiezas}</td><td>${g.conNo}</td><td>${g.alertas}</td></tr>`).join("")
+    || `<tr><td colspan="9">Sin turnos.</td></tr>`;
+}
+
+// ---------- Gráficos ----------
+const diaCorto = (d) => `${d.slice(8, 10)}-${d.slice(5, 7)}`;
+
+function barrasPorTurno(el, lista, medida, unidad) {
+  const nombres = [...new Set(["Turno A", "Turno B", "Turno C", "Turno D", ...lista.map(turnoDe)])];
+  const filas = nombres.map((n) => ({ n, v: lista.filter((t) => turnoDe(t) === n).reduce((a, t) => a + medida(t), 0) }));
+  const max = Math.max(...filas.map((f) => f.v), 0);
+  el.innerHTML = max === 0 ? `<p class="ayuda">Sin datos en este período.</p>` : filas.map((f) => `
+    <div class="bh"><span>${esc(f.n)}</span>
+      <div class="bh-pista"><div class="bh-barra" style="width:${(f.v / max) * 100}%"></div></div>
+      <span class="bh-v">${dec(f.v)} ${unidad}</span></div>`).join("");
+}
+
+// Columnas por día (últimos 31 días con datos del período filtrado; los días sin turno van en cero).
+function columnasPorDia(el, lista, medida, unidad) {
+  const dias = lista.map(diaDe).filter(Boolean).sort();
+  if (!dias.length) { el.innerHTML = `<p class="ayuda">Sin datos en este período.</p>`; return; }
+  const fin = new Date(dias.at(-1) + "T12:00:00");
+  let ini = new Date(dias[0] + "T12:00:00");
+  const tope = new Date(fin); tope.setDate(tope.getDate() - 30);
+  if (ini < tope) ini = tope;
+  const serie = [];
+  for (const d = new Date(ini); d <= fin; d.setDate(d.getDate() + 1)) {
+    const dia = d.toLocaleDateString("sv-SE");
+    serie.push({ dia, v: lista.filter((t) => diaDe(t) === dia).reduce((a, t) => a + medida(t), 0) });
+  }
+  const max = Math.max(...serie.map((s) => s.v), 0);
+  if (max === 0) { el.innerHTML = `<p class="ayuda">Sin datos en este período.</p>`; return; }
+  el.innerHTML = `
+    <div class="col-area"><span class="col-max">${dec(max)} ${unidad}</span>
+      ${serie.map((s) => `<button type="button" class="col" data-det="${diaCorto(s.dia)}: ${dec(s.v)} ${unidad}" aria-label="${diaCorto(s.dia)}: ${dec(s.v)} ${unidad}"><span class="col-b" style="height:${(s.v / max) * 100}%"></span></button>`).join("")}
+    </div>
+    <div class="col-eje"><span>${diaCorto(serie[0].dia)}</span><span>${serie.length > 1 ? diaCorto(serie.at(-1).dia) : ""}</span></div>
+    <p class="col-det">Toca una barra para ver el día.</p>`;
+}
+// Detalle al tocar, pasar el mouse o enfocar una columna.
+for (const ev of ["click", "pointerover", "focusin"]) {
+  document.addEventListener(ev, (e) => {
+    const c = e.target.closest?.(".col");
+    if (!c) return;
+    const g = c.closest(".columnas");
+    g.querySelectorAll(".col.activa").forEach((x) => x.classList.remove("activa"));
+    c.classList.add("activa");
+    g.querySelector(".col-det").textContent = c.dataset.det;
+  });
+}
+
+function renderGraficos(lista) {
+  const km = (t) => Number(t.recorrido) || 0;
+  barrasPorTurno($("#g-km-turno"), lista, km, "km");
+  barrasPorTurno($("#g-litros-turno"), lista, litrosDe, "L");
+  columnasPorDia($("#g-km-dia"), lista, km, "km");
+  columnasPorDia($("#g-litros-dia"), lista, litrosDe, "L");
+}
+
+$("#filtros").addEventListener("change", () => render());
+$("#limpiar").addEventListener("click", () => {
+  for (const id of ["#f-turno", "#f-chofer", "#f-desde", "#f-hasta"]) $(id).value = "";
+  render();
+});
+
+// Uso estimado del espacio gratuito (1 GiB): unos 150 KB por foto.
+function renderEspacio() {
+  $("#espacio").hidden = !esAdmin;
+  const mb = turnos.reduce((a, t) => a + nombresFotos(t).length * 0.15 + 0.01, 0);
+  const pct = Math.round((mb / 1024) * 100);
+  $("#espacio-txt").textContent = `${turnos.length} turnos guardados. Uso estimado: ${dec(mb)} MB de 1.024 MB (${pct}%). `
+    + (pct >= 70 ? "Conviene exportar el CSV y borrar los turnos más antiguos." : "Cuando pase de 70%, exporta el CSV y borra los turnos más antiguos.");
+}
+
+function render() {
+  const lista = visibles();
+  renderEspacio();
+  renderEstadisticas(lista);
+  renderGraficos(lista);
+  $("#tbody").innerHTML = lista.map((t) => `
+    <tr>
+      <td>${fecha(t.fecha)}</td>
+      <td>${esc(t.conductor)}</td>
+      <td>${fmtKm(t.kmInicio)}</td>
+      <td>${fmtKm(t.kmFinal)}</td>
+      <td>${fmtKm(t.recorrido)} km</td>
+      <td>${esc(t.novedad || "—")}</td>
+      <td>
+        <a href="turno.html?id=${esc(t.id)}" target="_blank" rel="noopener">Ver</a>${esAdmin ? `<br>
+        <button data-editar="${esc(t.id)}" class="secundario">Editar</button>
+        <button data-borrar="${esc(t.id)}" class="secundario">Borrar</button>` : ""}
+      </td>
+    </tr>`).join("") || `<tr><td colspan="7">Sin turnos.</td></tr>`;
+}
+
+$("#tbody").addEventListener("click", async (e) => {
+  const ed = e.target.dataset.editar;
+  const bo = e.target.dataset.borrar;
+  if (ed) {
+    const t = turnos.find((x) => x.id === ed);
+    editando = t;
+    const f = $("#form-editar");
+    f.kmFinal.value = t.kmFinal;
+    f.novedad.value = t.novedad || "";
+    $("#titulo-editar").textContent = `Editar turno de ${t.conductor}`;
+    $("#msg-editar").textContent = "";
+    f.hidden = false;
+    f.scrollIntoView({ behavior: "smooth" });
+  }
+  if (bo) {
+    const t = turnos.find((x) => x.id === bo);
+    if (!confirm(`¿Borrar el turno de ${t.conductor} del ${fecha(t.fecha)}? Se borran también sus fotos.`)) return;
+    try {
+      await borrarTurno(t, true);
+      cargar();
+    } catch {
+      $("#msg-panel").textContent = "No se pudo borrar el turno.";
+    }
+  }
+});
+
+const nombresFotos = (t) => (Array.isArray(t.fotos) ? t.fotos : Object.keys(t.fotos || {}));
+// Borra las fotos, el turno y (si se pide) su registro de km de cierre.
+async function borrarTurno(t, conCierre) {
+  for (const n of nombresFotos(t)) await deleteDoc(doc(db, "fotos", `${t.id}_${n}`));
+  if (conCierre) await deleteDoc(doc(db, "cierres", t.id)).catch(() => {});
+  await deleteDoc(doc(db, "turnos", t.id));
+}
+
+// Liberar espacio: borra todos los turnos anteriores a una fecha. Solo administradores.
+$("#purgar").addEventListener("click", async () => {
+  const msg = $("#msg-purgar");
+  const hasta = $("#purgar-fecha").value;
+  if (!hasta) { msg.textContent = "Elige la fecha."; return; }
+  const viejos = turnos.filter((t) => diaDe(t) && diaDe(t) < hasta);
+  if (!viejos.length) { msg.textContent = "No hay turnos anteriores a esa fecha."; return; }
+  if (!confirm(`Se borrarán ${viejos.length} turnos anteriores al ${hasta.split("-").reverse().join("-")}, con sus fotos. No se puede deshacer. ¿Exportaste el CSV?`)) return;
+  // El km del cierre más reciente se conserva siempre: lo necesita el turno siguiente.
+  const masReciente = turnos.reduce((a, t) => (!a || (t.cerradoEn || t.creadoEn) > (a.cerradoEn || a.creadoEn) ? t : a), null);
+  let hechos = 0;
+  try {
+    for (const t of viejos) {
+      msg.textContent = `Borrando ${hechos + 1} de ${viejos.length}…`;
+      await borrarTurno(t, t.id !== masReciente.id);
+      hechos++;
+    }
+    msg.textContent = `Listo: se borraron ${hechos} turnos.`;
+  } catch {
+    msg.textContent = `Se borraron ${hechos} de ${viejos.length}. Revisa la señal e intenta de nuevo.`;
+  }
+  cargar();
+});
+
+$("#cancelar").addEventListener("click", () => { $("#form-editar").hidden = true; editando = null; });
+
+$("#form-editar").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const msg = $("#msg-editar");
+  const kmFinal = Number(f.kmFinal.value);
+  if (!editando) return;
+  if (!Number.isInteger(kmFinal) || kmFinal < editando.kmInicio) {
+    msg.textContent = "El km final debe ser igual o mayor al inicial.";
+    return;
+  }
+  const cambios = { kmFinal, recorrido: kmFinal - editando.kmInicio, novedad: f.novedad.value.trim(), editadoPor: "administración", editadoEn: new Date().toISOString() };
+  try {
+    await updateDoc(doc(db, "turnos", editando.id), cambios);
+    // Mantiene el km del último cierre al día, para la validación del siguiente turno.
+    await updateDoc(doc(db, "cierres", editando.id), { kmFinal }).catch(() => {});
+    f.hidden = true;
+    editando = null;
+    cargar();
+  } catch {
+    msg.textContent = "No se pudo guardar. Revisa tu sesión.";
+  }
+});
+
+$("#exportar").addEventListener("click", () => {
+  const cols = ["creadoEn", "fecha", "odometroFinal", "turno", "chofer", "kmInicio", "kmFinal", "recorrido", "checklist", "checklistNo", "checklistObs", "limpieza", "combustible", "salidas", "novedad", "alertas", "editadoEn"];
+  const texto = {
+    limpieza: (t) => (t.limpieza ? "sí" : "no"),
+    checklist: (t) => { const c = contarChecklist(t.checklist); return `${c.si} SI, ${c.no} NO, ${c.na} N.A.`; },
+    checklistNo: (t) => itemsConNo(t.checklist).join(" | "),
+    combustible: (t) => (t.combustible?.cargo ? `${t.combustible.litros || "?"} L` : "sin carga"),
+    salidas: (t) => (t.salidas || []).map((s) => `${fecha(s.hora)} ${s.motivo} (autorizó ${s.autorizadaPor})`).join(" | "),
+    alertas: (t) => (t.alertas || []).join(" "),
+    turno: turnoDe,
+    chofer: choferDe,
+  };
+  const celda = (t, c) => `"${String(texto[c] ? texto[c](t) : t[c] ?? "").replaceAll('"', '""')}"`;
+  const filas = [cols.join(";"), ...visibles().map((t) => cols.map((c) => celda(t, c)).join(";"))];
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + filas.join("\n")], { type: "text/csv;charset=utf-8" }));
+  a.download = `turnos-${new Date().toLocaleDateString("sv-SE")}.csv`;
+  a.click();
+});
+</script>
+</body>
+</html>

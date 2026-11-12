@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Turno · Camioneta de Servicios Túnel · OHLA Chile</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .fotos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fotos figure { margin: 0; background: #fff; border-radius: 10px; padding: 8px; font-size: 13px; color: var(--gris); }
+  .fotos img { width: 100%; border-radius: 6px; display: block; }
+  .dato { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid #e3e6ea; font-size: 15px; }
+  .dato span:first-child { color: var(--gris); }
+</style>
+</head>
+<body>
+<header class="top"><span class="marca"><img src="logo.png" alt="OHLA Chile" onerror="this.remove()"><span><small>OHLA Chile</small><strong>Camioneta de Servicios Túnel</strong></span></span></header>
+<main id="contenido"><p class="ayuda">Cargando turno…</p></main>
+
+<script type="module">
+import { initializeFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { fb } from "./fb.js";
+import { CHECKLIST, RESPUESTAS, CHECKLIST_DOC, contarChecklist } from "./checklist.js";
+
+const db = initializeFirestore(fb, {});
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmtKm = (n) => Number(n || 0).toLocaleString("es-CL");
+const fechaHora = (iso) => iso ? new Date(iso).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short", hour12: false }) : "—";
+const NOMBRES = { inicio: "Odómetro inicio", frente: "Frente", atras: "Atrás", izq: "Lado izquierdo", der: "Lado derecho", final: "Odómetro final", novedad: "Novedad", combustible: "Medidor de combustible" };
+
+const id = new URLSearchParams(location.search).get("id");
+if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
+  $("#contenido").innerHTML = `<p class="msg">Enlace inválido.</p>`;
+} else {
+  const snap = await getDoc(doc(db, "turnos", id)).catch(() => null);
+  if (!snap || !snap.exists()) {
+    $("#contenido").innerHTML = `<p class="ayuda">Turno no encontrado o aún no subido. Intenta de nuevo cuando haya señal.</p>`;
+  } else {
+    const t = snap.data();
+    const salidas = (t.salidas || []).map((s) => `${fechaHora(s.hora)} · ${esc(s.motivo)} (autorizó ${esc(s.autorizadaPor)})`).join("<br>") || "Ninguna";
+    const comb = t.combustible?.cargo ? `${t.combustible.litros ? esc(t.combustible.litros) + " L" : "litros no informados"}` : "Sin carga";
+    const sinVerificar = (ok) => (ok === false ? " (hora no verificada)" : "");
+    const ck = contarChecklist(t.checklist);
+    const filasCk = CHECKLIST.map((it, i) => `<tr class="${t.checklist?.[it.id] === "no" ? "no" : ""}"><td>${i + 1}. ${esc(it.texto)}</td><td>${RESPUESTAS[t.checklist?.[it.id]] ?? "—"}</td></tr>`).join("");
+    const nombres = Array.isArray(t.fotos) ? t.fotos : Object.keys(t.fotos || {});
+    const fotos = nombres.map((k) => `
+      <figure data-foto="${esc(k)}"><p class="ayuda">Cargando foto…</p><figcaption>${esc(NOMBRES[k] || k)}</figcaption></figure>`).join("");
+    $("#contenido").innerHTML = `
+      <h2>${esc(t.conductor)}</h2>
+      <div class="card">
+        <div class="dato"><span>Inicio de turno</span><span>${fechaHora(t.fecha)}${sinVerificar(t.inicioVerificado)}</span></div>
+        <div class="dato"><span>Término de turno</span><span>${fechaHora(t.odometroFinal)}${sinVerificar(t.finalVerificado)}</span></div>
+        <div class="dato"><span>Km inicio</span><span>${fmtKm(t.kmInicio)}</span></div>
+        <div class="dato"><span>Km final</span><span>${fmtKm(t.kmFinal)}</span></div>
+        <div class="dato"><span>Recorrido</span><span>${fmtKm(t.recorrido)} km</span></div>
+        <div class="dato"><span>Check list</span><span>${ck.si} SI · ${ck.no} NO · ${ck.na} N.A.</span></div>
+        <div class="dato"><span>Limpieza</span><span>${t.limpieza ? "Realizada en este turno" : "No realizada en este turno"}</span></div>
+        <div class="dato"><span>Combustible</span><span>${comb}</span></div>
+        <div class="dato"><span>Salidas de faena</span><span>${salidas}</span></div>
+        <div class="dato"><span>Novedades</span><span>${esc(t.novedad || "Sin novedades")}</span></div>
+        ${(t.alertas || []).length ? `<p class="alerta">${t.alertas.map(esc).join("<br>")}</p>` : ""}
+      </div>
+      <h2>Check list de la camioneta</h2>
+      <p class="ayuda">${CHECKLIST_DOC}</p>
+      <div class="card">
+        <table class="ck-tabla"><tbody>${filasCk}</tbody></table>
+        ${t.checklistObs ? `<p><strong>Observaciones:</strong> ${esc(t.checklistObs)}</p>` : ""}
+      </div>
+      <h2>Fotos</h2>
+      <div class="fotos">${fotos || "<p class='ayuda'>Sin fotos.</p>"}</div>`;
+    // Cada foto se guarda como un documento aparte y se carga después del resumen.
+    for (const k of nombres) {
+      const fig = document.querySelector(`[data-foto="${CSS.escape(k)}"]`);
+      getDoc(doc(db, "fotos", `${id}_${k}`)).then((f) => {
+        const data = f.exists() ? f.data().dataUrl : "";
+        if (!/^data:image\/jpeg;base64,/.test(data)) throw new Error("sin foto");
+        const img = new Image();
+        img.alt = NOMBRES[k] || k;
+        img.src = data;
+        fig.querySelector("p").replaceWith(img);
+      }).catch(() => { fig.querySelector("p").textContent = "Foto no disponible."; });
+    }
+  }
+}
+</script>
+</body>
+</html>

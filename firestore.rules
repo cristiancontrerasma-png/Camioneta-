@@ -1,0 +1,85 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Toda persona usa la app con su cuenta (nombre + clave). No hay acceso anónimo.
+    function conCuenta() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+    // El rol vive en usuarios/{uid}: "pendiente", "chofer", "jefe" o "admin".
+    function rol() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol;
+    }
+    function tienePerfil() {
+      return conCuenta() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+    // Administradores (poder absoluto): ven todo, corrigen, borran y asignan roles.
+    function esAdmin() { return tienePerfil() && rol() == 'admin'; }
+    // Cuenta autorizada por un administrador: puede registrar turnos. Las "pendiente" no pueden nada.
+    function autorizado() { return tienePerfil() && rol() in ['chofer', 'jefe', 'admin']; }
+    // Jefes: ven los turnos de todos, sin corregir ni borrar.
+    function esJefe() { return tienePerfil() && rol() == 'jefe'; }
+
+    function kmValido(d) {
+      return d.kmFinal is int && d.kmFinal >= 0 && d.kmFinal < 3000000
+        && d.cerradoEn is string && d.cerradoEn.size() <= 40;
+    }
+
+    // Usuarios: cada persona crea su propio perfil y siempre como "pendiente" (sin acceso).
+    // Solo un administrador la autoriza y cambia el rol; nadie puede autorizarse ni ascenderse solo.
+    match /usuarios/{uid} {
+      allow get: if conCuenta() && (request.auth.uid == uid || esAdmin());
+      allow list: if esAdmin();
+      allow create: if conCuenta() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['nombre', 'rol', 'creadoEn'])
+        && request.resource.data.rol == 'pendiente'
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() >= 3 && request.resource.data.nombre.size() <= 80;
+      allow update: if esAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rol'])
+        && request.resource.data.rol in ['pendiente', 'chofer', 'jefe', 'admin'];
+      allow delete: if esAdmin();
+    }
+
+    // Cierres: solo el km final de cada turno, para avisar si el km inicial del siguiente no calza.
+    // No llevan chofer ni salidas, así un chofer no ve datos de otro.
+    match /cierres/{cierre} {
+      allow create: if autorizado()
+        && kmValido(request.resource.data)
+        && request.resource.data.keys().hasOnly(['turno', 'cerradoEn', 'kmFinal']);
+      allow read: if autorizado();
+      allow update, delete: if esAdmin();
+    }
+
+    // Turnos.
+    // - Chofer: crea su turno y ve en "Mis turnos" solo los suyos.
+    // - Jefes y administradores: ven los de todos.
+    // - Con el enlace de un turno (id imposible de adivinar) se abre ese turno, sin poder listar los demás.
+    match /turnos/{turno} {
+      allow get: if true;
+      allow create: if autorizado()
+        && kmValido(request.resource.data)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.conductor is string && request.resource.data.conductor.size() <= 120
+        && request.resource.data.kmInicio is int
+        && request.resource.data.kmFinal >= request.resource.data.kmInicio
+        && request.resource.data.fotos is list && request.resource.data.fotos.size() <= 12
+        && request.resource.data.novedad is string && request.resource.data.novedad.size() <= 2000;
+      allow list: if esAdmin() || esJefe()
+        || (autorizado() && resource.data.uid == request.auth.uid);
+      allow update, delete: if esAdmin();
+    }
+
+    // Fotos: un documento por foto, con id "<id del turno>_<nombre>" (plan gratuito, sin Storage).
+    // - Se abren solo conociendo el id del turno; nadie puede listarlas salvo los administradores.
+    // - Una foto subida no se puede reemplazar. Solo los administradores las borran.
+    match /fotos/{foto} {
+      allow get: if true;
+      allow create: if autorizado()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['turnoId', 'nombre', 'uid', 'dataUrl', 'creadoEn'])
+        && request.resource.data.dataUrl is string
+        && request.resource.data.dataUrl.size() < 500000;
+      allow list, delete: if esAdmin();
+    }
+  }
+}
