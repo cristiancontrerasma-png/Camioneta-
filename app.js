@@ -6,7 +6,7 @@ import { horaDeFoto } from "./exif.js";
 import { CHECKLIST, GRUPOS, RESPUESTAS, CHECKLIST_AVISO, contarChecklist, itemsConNo } from "./checklist.js";
 import {
   auth, primerEstado, entrar, registrar, asegurarPerfil, validar, mensajeError, salir,
-  CLAVE_INICIAL, marcarCambioClave, debeCambiarClave, validarClaveNueva, cambiarClave,
+  CLAVE_INICIAL, CUENTAS_INICIALES, usuarioDe, marcarCambioClave, debeCambiarClave, validarClaveNueva, cambiarClave,
 } from "./cuenta.js";
 
 const db = initializeFirestore(fb, { localCache: persistentLocalCache() });
@@ -657,7 +657,19 @@ $("#form-acceso").addEventListener("submit", async (e) => {
   const conClaveInicial = f.clave.value === CLAVE_INICIAL;
   msg.textContent = crear ? "Creando cuenta…" : "Entrando…";
   try {
-    const user = crear ? await registrar(db, f.nombre.value, f.clave.value) : await entrar(db, f.nombre.value, f.clave.value);
+    let user;
+    if (crear) {
+      user = await registrar(db, f.nombre.value, f.clave.value);
+    } else {
+      try {
+        user = await entrar(db, f.nombre.value, f.clave.value);
+      } catch (err) {
+        // Usuarios fijos (Navaria1, Cerdaju2...): la primera vez basta con «Entrar» y la clave inicial; la cuenta se crea sola.
+        const primeraVez = CUENTAS_INICIALES[usuarioDe(f.nombre.value)] && conClaveInicial && String(err?.code).includes("invalid-credential");
+        if (!primeraVez) throw err;
+        user = await registrar(db, f.nombre.value, f.clave.value).catch(() => { throw err; });
+      }
+    }
     f.reset();
     msg.textContent = "";
     if (conClaveInicial) marcarCambioClave(user.uid);
