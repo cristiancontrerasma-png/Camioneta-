@@ -657,7 +657,7 @@ $("#form-acceso").addEventListener("submit", async (e) => {
   const conClaveInicial = f.clave.value === CLAVE_INICIAL;
   msg.textContent = crear ? "Creando cuenta…" : "Entrando…";
   try {
-    const user = crear ? await registrar(db, f.nombre.value, f.clave.value) : await entrar(f.nombre.value, f.clave.value);
+    const user = crear ? await registrar(db, f.nombre.value, f.clave.value) : await entrar(db, f.nombre.value, f.clave.value);
     f.reset();
     msg.textContent = "";
     if (conClaveInicial) marcarCambioClave(user.uid);

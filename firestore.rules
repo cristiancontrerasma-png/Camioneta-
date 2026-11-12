@@ -30,7 +30,7 @@ service cloud.firestore {
       allow get: if conCuenta() && (request.auth.uid == uid || esAdmin());
       allow list: if esAdmin();
       allow create: if conCuenta() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['nombre', 'rol', 'creadoEn'])
+        && request.resource.data.keys().hasOnly(['nombre', 'usuario', 'rol', 'creadoEn'])
         // Toda cuenta nace "pendiente". Única excepción: el usuario Navaria1 (Ian Navarro) nace administrador.
         && (request.resource.data.rol == 'pendiente'
           || (request.resource.data.rol == 'admin' && request.auth.token.email == 'navaria1@camioneta.example.com'))
@@ -40,6 +40,15 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rol'])
         && request.resource.data.rol in ['pendiente', 'chofer', 'jefe', 'admin'];
       allow delete: if esAdmin();
+    }
+
+    // Reinicios de clave: número de versión vigente de la cuenta de cada persona.
+    // Se lee sin sesión (la app lo necesita para saber con qué cuenta entrar). Solo un administrador lo cambia.
+    match /reinicios/{usuario} {
+      allow get: if true;
+      allow create, update: if esAdmin()
+        && request.resource.data.keys().hasOnly(['n'])
+        && request.resource.data.n is int && request.resource.data.n >= 1 && request.resource.data.n < 1000;
     }
 
     // Cierres: solo el km final de cada turno, para avisar si el km inicial del siguiente no calza.

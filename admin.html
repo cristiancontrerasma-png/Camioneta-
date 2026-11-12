@@ -95,9 +95,16 @@
       <p class="ayuda">Toda cuenta nueva queda pendiente, sin acceso. Solo los administradores la autorizan, eligiendo su rol.</p>
       <p class="alerta" id="pendientes-aviso" hidden></p>
       <div class="tabla-wrap">
-        <table><thead><tr><th>Nombre</th><th>Rol</th></tr></thead><tbody id="tbody-usuarios"></tbody></table>
+        <table><thead><tr><th>Nombre</th><th>Rol</th><th>Clave</th></tr></thead><tbody id="tbody-usuarios"></tbody></table>
       </div>
       <p class="msg" id="msg-usuarios"></p>
+      <form id="form-alta">
+        <strong>Crear una cuenta para otra persona</strong>
+        <p class="ayuda">Queda con la clave inicial 123456. Al entrar por primera vez, la app le pide cambiarla por una propia.</p>
+        <label>Usuario, o nombre y apellido <input name="nombre" type="text" autocapitalize="none" required></label>
+        <label>Rol <select name="rol"><option value="chofer">Chofer (solo sus turnos)</option><option value="jefe">Jefe (ve todo)</option><option value="admin">Administrador (poder absoluto)</option></select></label>
+        <button type="submit" class="secundario">Crear cuenta con clave 123456</button>
+      </form>
     </div>
 
     <div class="card" id="espacio" hidden>
@@ -139,10 +146,16 @@
 
 <script type="module">
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, collection, doc, getDocs, query, orderBy, limit, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signOut as cerrarSesionDe } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, collection, doc, getDocs, setDoc, query, orderBy, limit, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { fb } from "./fb.js";
+import { firebaseConfig } from "./firebase-config.js";
 import { contarChecklist, itemsConNo } from "./checklist.js";
-import { auth, entrar, asegurarPerfil, validar, mensajeError, salir, CLAVE_INICIAL, marcarCambioClave, debeCambiarClave } from "./cuenta.js";
+import {
+  auth, entrar, asegurarPerfil, validar, mensajeError, salir, CLAVE_INICIAL, marcarCambioClave, debeCambiarClave,
+  CUENTAS_INICIALES, usuarioDe, limpiarNombre, correoVersion, versionVigente,
+} from "./cuenta.js";
 
 const db = initializeFirestore(fb, {});
 
@@ -181,7 +194,7 @@ $("#form-login").addEventListener("submit", async (e) => {
   msg.textContent = "Entrando…";
   try {
     const conClaveInicial = f.clave.value === CLAVE_INICIAL;
-    const user = await entrar(f.nombre.value, f.clave.value);
+    const user = await entrar(db, f.nombre.value, f.clave.value);
     if (conClaveInicial) { marcarCambioClave(user.uid); location.href = "index.html"; return; } // primero debe cambiar la clave inicial, en la app
     f.reset();
     msg.textContent = "";
@@ -193,6 +206,73 @@ $("#salir").addEventListener("click", () => salir());
 
 // ---------- Usuarios y roles (solo administradores) ----------
 const ROLES = { pendiente: "Pendiente (sin acceso)", chofer: "Chofer (solo sus turnos)", jefe: "Jefe (ve todo)", admin: "Administrador (poder absoluto)" };
+let usuarios = [];
+// Usuario (el nombre con que se entra) de un perfil. Los perfiles antiguos no lo guardan: se deduce del nombre.
+const usuarioDePerfil = (u) => u.usuario || Object.keys(CUENTAS_INICIALES).find((k) => CUENTAS_INICIALES[k] === u.nombre) || usuarioDe(u.nombre);
+
+// Crea una cuenta con la clave inicial, sin cerrar la sesión del administrador (usa una conexión aparte).
+// version: número de reinicio de esa persona (0 = primera cuenta). Devuelve el uid de la cuenta nueva.
+async function crearCuentaInicial(usuario, nombre, version) {
+  const aparte = initializeApp(firebaseConfig, `alta-${Date.now()}`);
+  try {
+    const cuenta = (await createUserWithEmailAndPassword(getAuth(aparte), correoVersion(usuario, version), CLAVE_INICIAL)).user;
+    // El perfil lo crea la propia cuenta nueva, como pendiente; el rol lo pone después el administrador.
+    await setDoc(doc(initializeFirestore(aparte, {}), "usuarios", cuenta.uid), { nombre, usuario, rol: "pendiente", creadoEn: new Date().toISOString() });
+    await cerrarSesionDe(getAuth(aparte));
+    return cuenta.uid;
+  } finally {
+    await deleteApp(aparte).catch(() => {});
+  }
+}
+
+$("#form-alta").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const msg = $("#msg-usuarios");
+  const falta = validar(f.nombre.value, CLAVE_INICIAL, true);
+  if (falta) { msg.textContent = falta; return; }
+  const usuario = usuarioDe(f.nombre.value);
+  const nombre = CUENTAS_INICIALES[usuario] ?? limpiarNombre(f.nombre.value);
+  msg.textContent = "Creando cuenta…";
+  try {
+    const uid = await crearCuentaInicial(usuario, nombre, await versionVigente(db, usuario));
+    await updateDoc(doc(db, "usuarios", uid), { rol: f.rol.value });
+    msg.textContent = `Cuenta creada para ${nombre}. Entra con «${f.nombre.value.trim()}» y la clave 123456; la app le pedirá cambiarla.`;
+    f.reset();
+  } catch (err) {
+    msg.textContent = String(err?.code).includes("email-already-in-use") ? "Esa persona ya tiene cuenta. Si olvidó la clave, usa «Reiniciar» en la lista." : "No se pudo crear la cuenta. Revisa la señal e intenta de nuevo.";
+  }
+  cargarUsuarios();
+});
+
+// Reiniciar clave: como no se puede cambiar la clave de otra persona, se le crea una cuenta nueva con la clave
+// inicial y el mismo rol, y la anterior queda sin acceso. La persona sigue entrando con el mismo nombre.
+$("#tbody-usuarios").addEventListener("click", async (e) => {
+  const uid = e.target.dataset.reiniciar;
+  if (!uid) return;
+  const u = usuarios.find((x) => x.uid === uid);
+  const msg = $("#msg-usuarios");
+  if (!confirm(`¿Reiniciar la clave de ${u.nombre}? Quedará en 123456 y deberá cambiarla al entrar.`)) return;
+  const usuario = usuarioDePerfil(u);
+  msg.textContent = "Reiniciando clave…";
+  try {
+    let version = (await versionVigente(db, usuario)) + 1;
+    let nuevoUid = null;
+    for (let intento = 0; intento < 3 && !nuevoUid; intento++, version++) {
+      try { nuevoUid = await crearCuentaInicial(usuario, u.nombre, version); break; }
+      catch (err) { if (!String(err?.code).includes("email-already-in-use")) throw err; }
+    }
+    if (!nuevoUid) throw new Error("sin versión libre");
+    await setDoc(doc(db, "reinicios", usuario), { n: version });
+    await updateDoc(doc(db, "usuarios", nuevoUid), { rol: u.rol });
+    await deleteDoc(doc(db, "usuarios", uid));   // la cuenta anterior queda sin perfil, es decir, sin acceso
+    msg.textContent = `Clave de ${u.nombre} reiniciada: ahora es 123456 y la app le pedirá cambiarla al entrar.`;
+  } catch {
+    msg.textContent = "No se pudo reiniciar la clave. Revisa la señal e intenta de nuevo.";
+  }
+  cargarUsuarios();
+});
+
 async function cargarUsuarios() {
   const cuerpo = $("#tbody-usuarios");
   try {
@@ -203,9 +283,11 @@ async function cargarUsuarios() {
     $("#pendientes-aviso").textContent = n === 1 ? "1 cuenta espera tu autorización. Elige su rol para darle acceso." : `${n} cuentas esperan tu autorización. Elige su rol para darles acceso.`;
     cuerpo.innerHTML = lista.map((u) => `
       <tr><td>${esc(u.nombre)}${u.rol === "pendiente" ? " ⏳" : ""}</td>
-      <td>${u.uid === perfil.uid ? "Administrador (tú)" : `<select data-rol="${esc(u.uid)}" aria-label="Rol de ${esc(u.nombre)}">${Object.entries(ROLES).map(([v, n]) => `<option value="${v}" ${u.rol === v ? "selected" : ""}>${n}</option>`).join("")}</select>`}</td></tr>`).join("");
+      <td>${u.uid === perfil.uid ? "Administrador (tú)" : `<select data-rol="${esc(u.uid)}" aria-label="Rol de ${esc(u.nombre)}">${Object.entries(ROLES).map(([v, n]) => `<option value="${v}" ${u.rol === v ? "selected" : ""}>${n}</option>`).join("")}</select>`}</td>
+      <td>${u.uid === perfil.uid ? "" : `<button type="button" class="secundario" data-reiniciar="${esc(u.uid)}">Reiniciar</button>`}</td></tr>`).join("");
+    usuarios = lista;
   } catch {
-    cuerpo.innerHTML = `<tr><td colspan="2">No se pudo cargar la lista de usuarios.</td></tr>`;
+    cuerpo.innerHTML = `<tr><td colspan="3">No se pudo cargar la lista de usuarios.</td></tr>`;
   }
 }
 $("#tbody-usuarios").addEventListener("change", async (e) => {

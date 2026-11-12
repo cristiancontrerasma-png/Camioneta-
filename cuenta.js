@@ -28,7 +28,19 @@ export const CLAVE_INICIAL = "123456";
 export const limpiarNombre = (n) => String(n ?? "").trim().replace(/\s+/g, " ");
 // "José  Pérez" y "jose perez" son la misma cuenta.
 export const usuarioDe = (n) => limpiarNombre(n).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.+|\.+$/g, "");
-const correoDe = (n) => `${usuarioDe(n)}@${DOMINIO}`;
+// Correo interno de una cuenta. Cuando un administrador reinicia la clave de alguien, se crea una cuenta
+// nueva para esa persona con el sufijo "-rN"; el número vigente está en reinicios/{usuario}.
+export const correoVersion = (usuario, n) => `${usuario}${n ? `-r${n}` : ""}@${DOMINIO}`;
+export const usuarioDeCorreo = (correo) => String(correo).split("@")[0].replace(/-r\d+$/, "");
+export async function versionVigente(db, usuario) {
+  try {
+    const snap = await getDoc(doc(db, "reinicios", usuario));
+    return snap.exists() ? Number(snap.data().n) || 0 : 0;
+  } catch {
+    return 0; // sin señal o sin permiso: se usa la cuenta original
+  }
+}
+const correoDe = async (db, nombre) => correoVersion(usuarioDe(nombre), await versionVigente(db, usuarioDe(nombre)));
 
 // Devuelve un texto con lo que falta, o "" si los datos sirven.
 export function validar(nombre, clave, crear = false) {
@@ -42,12 +54,12 @@ export function validar(nombre, clave, crear = false) {
 export const primerEstado = () => new Promise((res) => { const fin = onAuthStateChanged(auth, (u) => { fin(); res(u); }); });
 export const salir = () => signOut(auth);
 
-export async function entrar(nombre, clave) {
-  return (await signInWithEmailAndPassword(auth, correoDe(nombre), clave)).user;
+export async function entrar(db, nombre, clave) {
+  return (await signInWithEmailAndPassword(auth, await correoDe(db, nombre), clave)).user;
 }
 
 export async function registrar(db, nombre, clave) {
-  const user = (await createUserWithEmailAndPassword(auth, correoDe(nombre), clave)).user;
+  const user = (await createUserWithEmailAndPassword(auth, await correoDe(db, nombre), clave)).user;
   // Se recuerda el nombre por si el perfil no alcanza a guardarse (sin señal): se completa al volver a abrir.
   const visible = CUENTAS_INICIALES[usuarioDe(nombre)] ?? limpiarNombre(nombre);
   localStorage.setItem(KEY_PERFIL, JSON.stringify({ uid: user.uid, nombre: visible, rol: ROLES_INICIALES[usuarioDe(nombre)] ?? "pendiente" }));
@@ -68,10 +80,10 @@ export async function asegurarPerfil(db, user) {
     if (snap.exists()) {
       perfil = { uid: user.uid, nombre: snap.data().nombre, rol: snap.data().rol };
     } else {
-      const usuario = String(user.email).split("@")[0];
+      const usuario = usuarioDeCorreo(user.email);
       const nombre = local?.nombre ?? CUENTAS_INICIALES[usuario] ?? usuario.split(".").map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
       const rol = ROLES_INICIALES[usuario] ?? "pendiente";
-      await setDoc(ref, { nombre, rol, creadoEn: new Date().toISOString() });
+      await setDoc(ref, { nombre, usuario, rol, creadoEn: new Date().toISOString() });
       perfil = { uid: user.uid, nombre, rol };
     }
     localStorage.setItem(KEY_PERFIL, JSON.stringify(perfil));
