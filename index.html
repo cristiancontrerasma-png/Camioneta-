@@ -41,21 +41,25 @@
       <button type="submit" class="primario" value="entrar">Entrar</button>
       <button type="submit" class="secundario" value="crear">Crear cuenta</button>
       <p class="msg" id="msg-acceso"></p>
-      <p class="ayuda">¿Primera vez? Escribe tu nombre, inventa una clave de 6 números y toca «Crear cuenta». Un administrador (Ian Navarro o Cristian Contreras) debe autorizarla antes de que puedas usar la app.</p>
+      <p class="ayuda">¿Primera vez? Escribe tu nombre, inventa una clave de 6 números y toca «Crear cuenta». Un administrador (Ian Navarro o Cristian Contreras) debe autorizarla antes de que puedas usar la app. ¿Olvidaste tu clave? Avísale a un administrador.</p>
     </form>
   </section>
 
   <section id="vista-clave" class="vista" hidden>
     <h2>Cambia tu clave</h2>
     <form id="form-clave" class="card">
-      <p>Entraste con la clave inicial. Antes de seguir, crea una clave propia de 6 números que solo tú conozcas.</p>
+      <p id="clave-intro"></p>
+      <label id="clave-actual-campo">Clave actual
+        <input name="actual" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password">
+      </label>
       <label>Clave nueva (6 números)
         <input name="nueva" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" required>
       </label>
       <label>Repite la clave nueva
         <input name="repetida" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" required>
       </label>
-      <button type="submit" class="primario">Guardar clave y continuar</button>
+      <button type="submit" class="primario">Guardar clave nueva</button>
+      <button type="button" class="secundario" id="cancelar-clave">Cancelar</button>
       <p class="msg" id="msg-clave"></p>
     </form>
   </section>
@@ -92,6 +96,7 @@
     </form>
     <button class="secundario" id="recompartir-ultimo" hidden>Enviar de nuevo por WhatsApp el último turno cerrado</button>
     <button class="secundario" id="ver-mios">Mis turnos</button>
+    <button class="secundario" id="abrir-clave">Cambiar mi clave</button>
   </section>
 
   <section id="vista-estado" class="vista" hidden>

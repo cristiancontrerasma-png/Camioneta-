@@ -667,20 +667,42 @@ $("#form-acceso").addEventListener("submit", async (e) => {
   }
 });
 
+// Cambio de clave. Dos casos: obligatorio (entró con la clave inicial) o voluntario (botón "Cambiar mi clave").
+function mostrarCambioClave(obligatorio) {
+  const f = $("#form-clave");
+  f.reset();
+  f.dataset.obligatorio = obligatorio ? "1" : "";
+  $("#clave-intro").textContent = obligatorio
+    ? "Entraste con la clave inicial. Antes de seguir, crea una clave propia de 6 números que solo tú conozcas."
+    : "Escribe tu clave actual y luego la nueva, de 6 números.";
+  $("#clave-actual-campo").hidden = obligatorio;   // la clave inicial ya se conoce
+  $("#cancelar-clave").hidden = obligatorio;
+  $("#msg-clave").textContent = "";
+  ir("vista-clave");
+}
+$("#abrir-clave").addEventListener("click", () => mostrarCambioClave(false));
+$("#cancelar-clave").addEventListener("click", () => ir("vista-inicio"));
+
 $("#form-clave").addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = e.target;
   const msg = $("#msg-clave");
-  const falta = validarClaveNueva(f.nueva.value, f.repetida.value);
+  const obligatorio = f.dataset.obligatorio === "1";
+  const actual = obligatorio ? CLAVE_INICIAL : f.actual.value;
+  if (!actual) { msg.textContent = "Escribe tu clave actual."; return; }
+  const falta = validarClaveNueva(f.nueva.value, f.repetida.value) || (f.nueva.value === actual ? "La clave nueva debe ser distinta de la actual." : "");
   if (falta) { msg.textContent = falta; return; }
   msg.textContent = "Guardando…";
   try {
-    await cambiarClave(f.nueva.value);
+    await cambiarClave(actual, f.nueva.value);
     f.reset();
     msg.textContent = "";
-    await arrancar(auth.currentUser);
+    if (obligatorio) { await arrancar(auth.currentUser); return; }
+    $("#msg-inicio").textContent = "Clave cambiada. Úsala la próxima vez que entres.";
+    ir("vista-inicio");
   } catch (err) {
-    msg.textContent = mensajeError(err);
+    const c = err?.code ?? "";
+    msg.textContent = c.includes("invalid-credential") || c.includes("wrong-password") ? "La clave actual no es correcta." : mensajeError(err);
   }
 });
 
@@ -697,7 +719,7 @@ $("#salir").addEventListener("click", async () => {
 // ---------- Arranque ----------
 async function arrancar(user) {
   $("#salir").hidden = false;
-  if (debeCambiarClave(user.uid)) { ir("vista-clave"); return; } // la clave inicial no sirve para usar la app
+  if (debeCambiarClave(user.uid)) { mostrarCambioClave(true); return; } // la clave inicial no sirve para usar la app
   try {
     perfil = await asegurarPerfil(db, user);
   } catch {

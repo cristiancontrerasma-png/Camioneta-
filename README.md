@@ -23,7 +23,8 @@ App web (PWA) para registrar cada turno de la camioneta: odómetro inicial y fin
 - **Chofer**: registra turnos y ve solo los suyos.
 - Un administrador autoriza y asigna los roles en la página Jefes → «Usuarios y roles»: **chofer**, **jefe** (ve todo) o **administrador** (además corrige, borra y asigna roles).
 - **Primer administrador:** regístrate en la app y luego, en la consola de Firebase → Firestore → `usuarios` → tu documento, cambia `rol` a `admin`. Desde ahí asignas a los demás.
-- **Clave olvidada:** en la consola de Firebase → Authentication, borra el usuario (aparece como `nombre.apellido@camioneta.example.com`). La persona crea la cuenta de nuevo con el mismo nombre; sus turnos anteriores siguen visibles para jefes y administradores, pero ya no en su «Mis turnos».
+- **Cambiar la clave:** cada persona puede cambiarla desde Inicio → «Cambiar mi clave», escribiendo la clave actual.
+- **Clave olvidada:** la app no puede reiniciarla. El dueño del proyecto entra a la consola de Firebase → Authentication → Usuarios, borra ese usuario (aparece como `nombre.apellido@camioneta.example.com`) y la persona crea su cuenta de nuevo; un administrador vuelve a autorizarla. Sus turnos anteriores siguen visibles para jefes y administradores, pero ya no en su «Mis turnos».
 
 ## Configurar Firebase (una sola vez)
 1. Crea un proyecto en https://console.firebase.google.com.

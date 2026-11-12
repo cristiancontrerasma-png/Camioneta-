@@ -2,6 +2,7 @@
 // Por dentro Firebase necesita un correo, así que se arma uno a partir del nombre. No se envía nada a ese correo.
 import {
   getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, signOut, onAuthStateChanged,
+  reauthenticateWithCredential, EmailAuthProvider,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { fb } from "./fb.js";
@@ -90,8 +91,11 @@ export function validarClaveNueva(nueva, repetida) {
   if (nueva !== repetida) return "Las dos claves no coinciden.";
   return "";
 }
-export async function cambiarClave(nueva) {
-  await updatePassword(auth.currentUser, nueva);
+// Cambia la clave de quien está dentro. Pide la clave actual para confirmar que es la misma persona.
+export async function cambiarClave(actual, nueva) {
+  const u = auth.currentUser;
+  await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, actual));
+  await updatePassword(u, nueva);
   localStorage.removeItem(KEY_CAMBIAR);
 }
 
