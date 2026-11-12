@@ -18,6 +18,9 @@ export const CUENTAS_INICIALES = {
   cerdaju2: "Julio Cerda",
   moyara2: "Raúl Moya",
 };
+// Cuentas que nacen con un rol sin pasar por la espera. Las reglas de Firestore solo lo aceptan para esos usuarios.
+// Ian Navarro (Navaria1) queda como administrador apenas crea su cuenta, con acceso a todos los datos.
+export const ROLES_INICIALES = { navaria1: "admin" };
 // Clave de partida de esas cuentas. Quien entra con ella debe cambiarla antes de usar la app.
 export const CLAVE_INICIAL = "123456";
 
@@ -46,7 +49,7 @@ export async function registrar(db, nombre, clave) {
   const user = (await createUserWithEmailAndPassword(auth, correoDe(nombre), clave)).user;
   // Se recuerda el nombre por si el perfil no alcanza a guardarse (sin señal): se completa al volver a abrir.
   const visible = CUENTAS_INICIALES[usuarioDe(nombre)] ?? limpiarNombre(nombre);
-  localStorage.setItem(KEY_PERFIL, JSON.stringify({ uid: user.uid, nombre: visible, rol: "pendiente" }));
+  localStorage.setItem(KEY_PERFIL, JSON.stringify({ uid: user.uid, nombre: visible, rol: ROLES_INICIALES[usuarioDe(nombre)] ?? "pendiente" }));
   await asegurarPerfil(db, user);
   return user;
 }
@@ -66,8 +69,9 @@ export async function asegurarPerfil(db, user) {
     } else {
       const usuario = String(user.email).split("@")[0];
       const nombre = local?.nombre ?? CUENTAS_INICIALES[usuario] ?? usuario.split(".").map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
-      await setDoc(ref, { nombre, rol: "pendiente", creadoEn: new Date().toISOString() });
-      perfil = { uid: user.uid, nombre, rol: "pendiente" };
+      const rol = ROLES_INICIALES[usuario] ?? "pendiente";
+      await setDoc(ref, { nombre, rol, creadoEn: new Date().toISOString() });
+      perfil = { uid: user.uid, nombre, rol };
     }
     localStorage.setItem(KEY_PERFIL, JSON.stringify(perfil));
     return perfil;

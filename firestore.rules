@@ -31,7 +31,9 @@ service cloud.firestore {
       allow list: if esAdmin();
       allow create: if conCuenta() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['nombre', 'rol', 'creadoEn'])
-        && request.resource.data.rol == 'pendiente'
+        // Toda cuenta nace "pendiente". Única excepción: el usuario Navaria1 (Ian Navarro) nace administrador.
+        && (request.resource.data.rol == 'pendiente'
+          || (request.resource.data.rol == 'admin' && request.auth.token.email == 'navaria1@camioneta.example.com'))
         && request.resource.data.nombre is string
         && request.resource.data.nombre.size() >= 3 && request.resource.data.nombre.size() <= 80;
       allow update: if esAdmin()

@@ -18,6 +18,7 @@ App web (PWA) para registrar cada turno de la camioneta: odómetro inicial y fin
 - Cada persona crea su cuenta en la app con nombre y apellido y una clave de 6 números. No se pide correo.
 - **Usuarios fijos** (administradores y jefes): `Navaria1` Ian Navarro, `Contrcr3` Cristian Contreras, `Cerdaju2` Julio Cerda, `Moyara2` Raúl Moya. Cada uno crea su cuenta escribiendo ese usuario con la clave inicial `123456`; la app lo obliga a cambiarla por una propia antes de continuar. Están definidos en `cuenta.js` (`CUENTAS_INICIALES`).
 - Los choferes crean su cuenta con su nombre y apellido y la clave que elijan.
+- **Excepción:** el usuario `Navaria1` (Ian Navarro) queda como administrador apenas crea su cuenta, sin espera. Ojo: quien registre ese usuario primero recibe ese rol, así que debe crearse cuanto antes.
 - Toda cuenta nueva queda **pendiente**: no puede usar la app hasta que un administrador (Ian Navarro o Cristian Contreras) la autorice.
 - **Chofer**: registra turnos y ve solo los suyos.
 - Un administrador autoriza y asigna los roles en la página Jefes → «Usuarios y roles»: **chofer**, **jefe** (ve todo) o **administrador** (además corrige, borra y asigna roles).

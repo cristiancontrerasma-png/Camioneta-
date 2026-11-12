@@ -1,4 +1,4 @@
-const CACHE = "camioneta-v17";
+const CACHE = "camioneta-v18";
 const SDK = "https://www.gstatic.com/firebasejs/10.12.2/";
 const LOCALES = [
   "./", "index.html", "styles.css", "app.js", "cuenta.js", "checklist.js", "instalar.js", "fb.js", "exif.js", "firebase-config.js",
