@@ -23,6 +23,7 @@ App web (PWA) para registrar cada turno de la camioneta: odómetro inicial y fin
 - **Chofer**: registra turnos y ve solo los suyos.
 - Un administrador autoriza y asigna los roles en la página Jefes → «Usuarios y roles»: **chofer**, **jefe** (ve todo) o **administrador** (además corrige, borra y asigna roles).
 - **Primer administrador:** regístrate en la app y luego, en la consola de Firebase → Firestore → `usuarios` → tu documento, cambia `rol` a `admin`. Desde ahí asignas a los demás.
+- **Sesión:** la app pide usuario y clave cada vez que se abre. El nombre queda recordado en el teléfono; la clave se escribe siempre. Mientras la app sigue abierta (aunque se recargue), no vuelve a pedirla.
 - **Cambiar la clave:** cada persona puede cambiarla desde Inicio → «Cambiar mi clave», escribiendo la clave actual.
 - **Clave olvidada:** un administrador abre Jefes → «Usuarios y roles» y toca «Reiniciar» junto a la persona. La clave vuelve a ser `123456` y la app le pide cambiarla al entrar. Por dentro se le crea una cuenta nueva con el mismo rol; sus turnos anteriores siguen visibles para jefes y administradores, pero ya no en su «Mis turnos».
 - **Crear cuentas para otros:** en el mismo lugar, un administrador puede crear la cuenta de alguien con su rol y la clave inicial `123456`.

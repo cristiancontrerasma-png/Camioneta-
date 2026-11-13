@@ -2,12 +2,17 @@
 // Por dentro Firebase necesita un correo, así que se arma uno a partir del nombre. No se envía nada a ese correo.
 import {
   getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, signOut, onAuthStateChanged,
-  reauthenticateWithCredential, EmailAuthProvider,
+  reauthenticateWithCredential, EmailAuthProvider, setPersistence, browserSessionPersistence,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { fb } from "./fb.js";
 
 export const auth = getAuth(fb);
+// La sesión dura solo mientras la app está abierta: al cerrarla y volver a entrar, pide usuario y clave de nuevo.
+const sesionCorta = setPersistence(auth, browserSessionPersistence).catch(() => {});
+const KEY_ULTIMO_USUARIO = "cam.ultimoUsuario";
+// Último nombre con que se entró en este teléfono, para no tener que escribirlo cada vez (la clave sí se pide siempre).
+export const ultimoUsuario = () => localStorage.getItem(KEY_ULTIMO_USUARIO) ?? "";
 const DOMINIO = "camioneta.example.com";
 const KEY_PERFIL = "cam.perfil";
 const KEY_CAMBIAR = "cam.debeCambiarClave";
@@ -51,15 +56,23 @@ export function validar(nombre, clave, crear = false) {
   return "";
 }
 
-export const primerEstado = () => new Promise((res) => { const fin = onAuthStateChanged(auth, (u) => { fin(); res(u); }); });
+export const primerEstado = async () => {
+  await sesionCorta;
+  return new Promise((res) => { const fin = onAuthStateChanged(auth, (u) => { fin(); res(u); }); });
+};
 export const salir = () => signOut(auth);
 
 export async function entrar(db, nombre, clave) {
-  return (await signInWithEmailAndPassword(auth, await correoDe(db, nombre), clave)).user;
+  await sesionCorta;
+  const user = (await signInWithEmailAndPassword(auth, await correoDe(db, nombre), clave)).user;
+  localStorage.setItem(KEY_ULTIMO_USUARIO, limpiarNombre(nombre));
+  return user;
 }
 
 export async function registrar(db, nombre, clave) {
+  await sesionCorta;
   const user = (await createUserWithEmailAndPassword(auth, await correoDe(db, nombre), clave)).user;
+  localStorage.setItem(KEY_ULTIMO_USUARIO, limpiarNombre(nombre));
   // Se recuerda el nombre por si el perfil no alcanza a guardarse (sin señal): se completa al volver a abrir.
   const visible = CUENTAS_INICIALES[usuarioDe(nombre)] ?? limpiarNombre(nombre);
   localStorage.setItem(KEY_PERFIL, JSON.stringify({ uid: user.uid, nombre: visible, rol: ROLES_INICIALES[usuarioDe(nombre)] ?? "pendiente" }));

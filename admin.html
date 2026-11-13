@@ -154,7 +154,7 @@ import { firebaseConfig } from "./firebase-config.js";
 import { contarChecklist, itemsConNo } from "./checklist.js";
 import {
   auth, entrar, asegurarPerfil, validar, mensajeError, salir, CLAVE_INICIAL, marcarCambioClave, debeCambiarClave,
-  CUENTAS_INICIALES, usuarioDe, limpiarNombre, correoVersion, versionVigente,
+  CUENTAS_INICIALES, usuarioDe, limpiarNombre, correoVersion, versionVigente, ultimoUsuario,
 } from "./cuenta.js";
 
 const db = initializeFirestore(fb, {});
@@ -185,6 +185,7 @@ onAuthStateChanged(auth, async (u) => {
   if (dentro) cargar();
 });
 
+$("#form-login").nombre.value = ultimoUsuario();
 $("#form-login").addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = e.target;

@@ -6,7 +6,7 @@ import { horaDeFoto } from "./exif.js";
 import { CHECKLIST, GRUPOS, RESPUESTAS, CHECKLIST_AVISO, contarChecklist, itemsConNo } from "./checklist.js";
 import {
   auth, primerEstado, entrar, registrar, asegurarPerfil, validar, mensajeError, salir,
-  CLAVE_INICIAL, CUENTAS_INICIALES, usuarioDe, marcarCambioClave, debeCambiarClave, validarClaveNueva, cambiarClave,
+  CLAVE_INICIAL, CUENTAS_INICIALES, usuarioDe, ultimoUsuario, marcarCambioClave, debeCambiarClave, validarClaveNueva, cambiarClave,
 } from "./cuenta.js";
 
 const db = initializeFirestore(fb, { localCache: persistentLocalCache() });
@@ -794,6 +794,13 @@ async function sugerirKmInicial() {
 }
 
 const usuarioInicial = await primerEstado();
-if (usuarioInicial) await arrancar(usuarioInicial); else ir("vista-acceso");
+if (usuarioInicial) {
+  await arrancar(usuarioInicial);
+} else {
+  // Siempre se pide la clave al abrir la app; el nombre queda puesto para no escribirlo cada vez.
+  $("#form-acceso").nombre.value = ultimoUsuario();
+  ir("vista-acceso");
+  if (ultimoUsuario()) $("#form-acceso").clave.focus();
+}
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
