@@ -559,9 +559,11 @@ $("#form-editar").addEventListener("submit", async (e) => {
 });
 
 $("#exportar").addEventListener("click", () => {
-  const cols = ["creadoEn", "fecha", "odometroFinal", "turno", "chofer", "kmInicio", "kmFinal", "recorrido", "checklist", "checklistNo", "checklistObs", "limpieza", "combustible", "salidas", "novedad", "alertas", "editadoEn"];
+  const cols = ["creadoEn", "fecha", "odometroFinal", "turno", "chofer", "kmInicio", "kmFinal", "recorrido", "inicioVerificado", "finalVerificado", "checklist", "checklistNo", "checklistObs", "limpieza", "combustible", "salidas", "novedad", "alertas", "editadoEn"];
   const texto = {
     limpieza: (t) => (t.limpieza ? "sí" : "no"),
+    inicioVerificado: (t) => (t.inicioVerificado ? "sí" : "no"),
+    finalVerificado: (t) => (t.finalVerificado ? "sí" : "no"),
     checklist: (t) => { const c = contarChecklist(t.checklist); return `${c.si} SI, ${c.no} NO, ${c.na} N.A.`; },
     checklistNo: (t) => itemsConNo(t.checklist).join(" | "),
     combustible: (t) => (t.combustible?.cargo ? `${t.combustible.litros || "?"} L` : "sin carga"),

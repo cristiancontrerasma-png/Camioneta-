@@ -554,15 +554,16 @@ function lineasChecklist(t) {
     ...(t.checklistObs ? [`Obs. check list: ${t.checklistObs}`] : []),
   ];
 }
-const sinVerificar = (ok) => (ok === false ? " (hora no verificada)" : "");
+// El mensaje de WhatsApp no lleva la marca "hora no verificada" (en iPhone saldría siempre);
+// queda en la página del turno y en el CSV, para quien quiera auditar.
 
 function resumen(t) {
   return [
     "🚚 OHLA Chile · Camioneta de Servicios Túnel",
     `Conductor: ${t.conductor}`,
-    `Inicio de turno (foto odómetro): ${fechaHora(t.fecha)}${sinVerificar(t.inicioVerificado)}`,
+    `Inicio de turno (foto odómetro): ${fechaHora(t.fecha)}`,
     `Km inicio: ${fmtKm(t.kmInicio)} · Km final: ${fmtKm(t.kmFinal)} · Recorrido: ${fmtKm(t.recorrido)} km`,
-    `Término de turno (foto odómetro final): ${t.odometroFinal ? fechaHora(t.odometroFinal) + sinVerificar(t.finalVerificado) : "sin foto"}`,
+    `Término de turno (foto odómetro final): ${t.odometroFinal ? fechaHora(t.odometroFinal) : "sin foto"}`,
     ...lineasChecklist(t),
     ...(t.limpieza ? ["🧽 Limpieza: realizada en este turno"] : []),
     `Combustible: ${textoCombustible(t.combustible)}`,

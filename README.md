@@ -49,7 +49,7 @@ firebase deploy
 - Las fotos se pueden tomar con la cámara o elegir de la galería.
 
 ## Reglas de la app
-- **Hora de inicio y término:** es la hora de captura de la foto del odómetro (dato EXIF). Si la foto no trae ese dato, se usa la fecha del archivo y el resumen dice "hora no verificada".
+- **Hora de inicio y término:** es la hora de captura de la foto del odómetro (dato EXIF). Si la foto no trae ese dato, se usa la fecha del archivo y la página del turno y el CSV lo marcan como "hora no verificada" (en iPhone ocurre siempre). El mensaje de WhatsApp no lleva esa marca.
 - **Foto inicial:** no puede tener más de 15 minutos. **Foto final:** no más de 5 minutos al cerrar.
 - **Km:** el km inicial se llena solo con el km de cierre del turno anterior; el chofer lo corrige si el odómetro marca otro valor. Alerta si no coincide con el cierre anterior. Si el recorrido supera 500 km, pide confirmar.
 - **Quién ve qué:** cada chofer ve solo sus propios turnos ("Mis turnos", los cerrados desde su celular). Los jefes y los administradores ven los de todos. Del turno anterior, un chofer solo recibe el km de cierre.
