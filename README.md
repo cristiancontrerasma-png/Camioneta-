@@ -51,7 +51,7 @@ firebase deploy
 ## Reglas de la app
 - **Hora de inicio y término:** es la hora de captura de la foto del odómetro (dato EXIF). Si la foto no trae ese dato, se usa la fecha del archivo y el resumen dice "hora no verificada".
 - **Foto inicial:** no puede tener más de 15 minutos. **Foto final:** no más de 5 minutos al cerrar.
-- **Km:** alerta si el km inicial no coincide con el cierre anterior. Si el recorrido supera 500 km, pide confirmar.
+- **Km:** el km inicial se llena solo con el km de cierre del turno anterior; el chofer lo corrige si el odómetro marca otro valor. Alerta si no coincide con el cierre anterior. Si el recorrido supera 500 km, pide confirmar.
 - **Quién ve qué:** cada chofer ve solo sus propios turnos ("Mis turnos", los cerrados desde su celular). Los jefes y los administradores ven los de todos. Del turno anterior, un chofer solo recibe el km de cierre.
 - **Cierre completo:** el turno no se cierra ni se genera el enlace si falta algo (fotos, km final, litros y foto del medidor si hubo carga, check list incompleto, o con algún NO sin observación). La app lista todo lo que falta.
 - **Check list de la camioneta:** obligatorio en cada turno. Cada ítem se responde SI, NO o N.A.; si hay algún NO, las observaciones son obligatorias. Son los 21 ítems del formulario oficial «Lista de Chequeo Camioneta» (CO-CL-1CL370-SS-PR-10-Anexo12, Rev. 1), en el mismo orden, agrupados en cuatro bloques desplegables. No hay botón para marcar todo: cada ítem se responde uno por uno. Están en `checklist.js`.

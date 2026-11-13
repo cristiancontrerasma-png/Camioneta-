@@ -265,12 +265,23 @@ $("#form-inicio").addEventListener("submit", async (e) => {
   };
   if (fotoInicioTmp) {
     activo.fotos.inicio = fotoInicioTmp.dataUrl;
-    activo.fecha = fotoInicioTmp.hora;
-    activo.inicioVerificado = fotoInicioTmp.verificada;
+    // La hora de inicio es la de la primera foto: si después se reemplaza la foto, la hora de inicio no cambia.
+    if (!activo.fecha) {
+      activo.fecha = fotoInicioTmp.hora;
+      activo.inicioVerificado = fotoInicioTmp.verificada;
+    }
   }
   fotoInicioTmp = null;
   f.fotoInicio.value = "";
   guardarActivo();
+  if (volverACierre) {
+    // Corrección hecha desde la pantalla de cierre: vuelve ahí sin perder lo ya ingresado.
+    volverACierre = false;
+    $("#km-inicio-txt").textContent = fmtKm(activo.kmInicio);
+    $("#form-cierre").kmFinal.dispatchEvent(new Event("input", { bubbles: true }));
+    ir("vista-cierre");
+    return;
+  }
   renderEstado();
   ir("vista-estado");
 });
@@ -422,7 +433,10 @@ $("#checklist-obs").addEventListener("input", (e) => {
   guardarActivo();
 });
 
-$("#volver-inicio").addEventListener("click", () => { renderInicio(); ir("vista-inicio"); });
+let volverACierre = false;
+$("#volver-inicio").addEventListener("click", () => { volverACierre = false; renderInicio(); ir("vista-inicio"); });
+$("#corregir-desde-cierre").addEventListener("click", () => { volverACierre = true; renderInicio(); ir("vista-inicio"); });
+$("#corregir-inicio-cierre").addEventListener("click", () => { renderInicio(); ir("vista-inicio"); });
 
 // Lo que falta del estado de la camioneta para poder cerrar el turno.
 function faltantesEstado() {
@@ -479,11 +493,14 @@ $("#volver-salida").addEventListener("click", () => ir(origenSalida));
 // ---------- Cierre ----------
 let recorridoConfirmado = null;
 function renderCierre() {
-  // La foto final debe tomarse en esta pantalla, al cerrar: se descarta cualquier foto anterior.
-  activo.fotos.final = null;
-  activo.fotos.finalHora = null;
-  guardarActivo();
-  $("#form-cierre").fotoFinal.value = "";
+  // La foto final debe tomarse al cerrar: se descarta si no hay o si ya pasó el límite.
+  // Si el chofer fue a corregir algo y volvió a tiempo, la foto final recién tomada se conserva.
+  if (!activo.fotos.final || minutosDesde(activo.fotos.finalHora) > MINUTOS_MAX_FOTO_FINAL) {
+    activo.fotos.final = null;
+    activo.fotos.finalHora = null;
+    guardarActivo();
+    $("#form-cierre").fotoFinal.value = "";
+  }
   $("#km-inicio-txt").textContent = fmtKm(activo.kmInicio);
   $("#recorrido-txt").textContent = "—";
   $("#msg-cierre").textContent = "";
@@ -643,6 +660,7 @@ $("#nuevo-turno").addEventListener("click", () => {
   $("#form-inicio").reset();
   $("#form-cierre").reset();
   renderInicio();
+  sugerirKmInicial();
   ir("vista-inicio");
 });
 
@@ -760,9 +778,18 @@ async function arrancar(user) {
   if (activo) { renderEstado(); ir("vista-estado"); } else { ir("vista-inicio"); }
 
   sincronizarTurnos();
-  ultimoKmCerrado().then((km) => {
-    $("#km-anterior").textContent = km == null ? "Primer turno: no hay cierre anterior." : `Cierre del turno anterior: ${fmtKm(km)} km`;
-  });
+  sugerirKmInicial();
+}
+
+// El km inicial se llena solo con el km de cierre del turno anterior. El chofer lo compara con el odómetro
+// y lo corrige si no coincide (en ese caso queda la alerta de km sin registrar).
+async function sugerirKmInicial() {
+  const km = await ultimoKmCerrado();
+  $("#km-anterior").textContent = km == null
+    ? "Primer turno: no hay cierre anterior. Escribe el km que marca el odómetro."
+    : `Cierre del turno anterior: ${fmtKm(km)} km. Ya viene puesto; corrígelo solo si el odómetro marca otro valor.`;
+  const campo = $("#form-inicio").kmInicio;
+  if (km != null && !activo && campo.value === "") campo.value = km;
 }
 
 const usuarioInicial = await primerEstado();
