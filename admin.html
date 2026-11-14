@@ -27,7 +27,12 @@
   .col-max { position: absolute; top: 0; left: 0; font-size: 12px; color: var(--gris); border-top: 1px dashed #d9dde2; width: 100%; padding-top: 2px; pointer-events: none; }
   .col-eje { display: flex; justify-content: space-between; font-size: 12px; color: var(--gris); margin-top: 4px; }
   .col-det { font-size: 14px; color: #222; min-height: 1.3em; margin: 6px 0 0; }
-  td button { min-height: 34px; padding: 0 10px; font-size: 13px; margin: 0 4px 4px 0; border-radius: 8px; }
+  .acciones { white-space: nowrap; }
+  .acciones a, .acciones button { display: block; width: 100%; text-align: center; }
+  .acciones a { padding: 6px 0; }
+  .con-alerta { color: #8a5a00; font-size: 12px; }
+  input[type="date"] { -webkit-appearance: none; appearance: none; box-sizing: border-box; max-width: 100%; min-width: 0; }
+  td button { min-height: 34px; padding: 0 10px; font-size: 13px; margin: 0 0 4px 0; border-radius: 8px; }
 </style>
 </head>
 <body>
@@ -126,7 +131,7 @@
     <h2>Turnos</h2>
     <div class="tabla-wrap">
       <table>
-        <thead><tr><th>Fecha</th><th>Conductor</th><th>Km inicio</th><th>Km final</th><th>Recorrido</th><th>Novedad</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Acciones</th><th>Fecha</th><th>Conductor</th><th>Km inicio</th><th>Km final</th><th>Recorrido</th><th>Novedad</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
@@ -466,17 +471,17 @@ function render() {
   renderGraficos(lista);
   $("#tbody").innerHTML = lista.map((t) => `
     <tr>
+      <td class="acciones">
+        <a href="turno.html?id=${esc(t.id)}" target="_blank" rel="noopener">Ver</a>${esAdmin ? `
+        <button data-editar="${esc(t.id)}" class="secundario">Editar</button>
+        <button data-borrar="${esc(t.id)}" class="secundario">Borrar</button>` : ""}
+      </td>
       <td>${fecha(t.fecha)}</td>
-      <td>${esc(t.conductor)}</td>
+      <td>${esc(t.conductor)}${(t.alertas || []).length ? `<br><span class="con-alerta">⚠️ Alerta de km</span>` : ""}</td>
       <td>${fmtKm(t.kmInicio)}</td>
       <td>${fmtKm(t.kmFinal)}</td>
       <td>${fmtKm(t.recorrido)} km</td>
       <td>${esc(t.novedad || "—")}</td>
-      <td>
-        <a href="turno.html?id=${esc(t.id)}" target="_blank" rel="noopener">Ver</a>${esAdmin ? `<br>
-        <button data-editar="${esc(t.id)}" class="secundario">Editar</button>
-        <button data-borrar="${esc(t.id)}" class="secundario">Borrar</button>` : ""}
-      </td>
     </tr>`).join("") || `<tr><td colspan="7">Sin turnos.</td></tr>`;
 }
 
