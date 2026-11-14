@@ -135,6 +135,10 @@
       <strong id="titulo-editar"></strong>
       <label>Km final <input name="kmFinal" type="number" inputmode="numeric" required></label>
       <label>Novedades <textarea name="novedad" rows="3"></textarea></label>
+      <div id="editar-alerta" hidden>
+        <p class="ayuda" id="texto-alerta"></p>
+        <label><input type="checkbox" name="quitarAlerta"> Quitar esta alerta de km del turno</label>
+      </div>
       <div class="fila">
         <button type="button" class="secundario" id="cancelar">Cancelar</button>
         <button type="submit" class="primario">Guardar cambios</button>
@@ -485,6 +489,9 @@ $("#tbody").addEventListener("click", async (e) => {
     const f = $("#form-editar");
     f.kmFinal.value = t.kmFinal;
     f.novedad.value = t.novedad || "";
+    f.quitarAlerta.checked = false;
+    $("#editar-alerta").hidden = !(t.alertas || []).length;
+    $("#texto-alerta").textContent = (t.alertas || []).join(" ");
     $("#titulo-editar").textContent = `Editar turno de ${t.conductor}`;
     $("#msg-editar").textContent = "";
     f.hidden = false;
@@ -547,6 +554,7 @@ $("#form-editar").addEventListener("submit", async (e) => {
     return;
   }
   const cambios = { kmFinal, recorrido: kmFinal - editando.kmInicio, novedad: f.novedad.value.trim(), editadoPor: "administración", editadoEn: new Date().toISOString() };
+  if (f.quitarAlerta.checked) cambios.alertas = [];
   try {
     await updateDoc(doc(db, "turnos", editando.id), cambios);
     // Mantiene el km del último cierre al día, para la validación del siguiente turno.
