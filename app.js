@@ -18,7 +18,7 @@ const MINUTOS_MAX_FOTO_FINAL = 5;   // tiempo máximo entre la foto del odómetr
 const LADO_MAX_FOTO = 800;          // lado mayor de cada foto, en pixeles
 const PESO_MAX_FOTO = 400000;      // tamaño máximo de cada foto ya comprimida (caracteres base64)
 const MAX_RECORRIDO_KM = 500;       // sobre este recorrido se pide confirmar el km final
-const KEY_ULTIMO_KM = "cam.ultimoKm";
+const KEY_ULTIMO_KM = "cam.ultimoCierre";
 const KEY_ULTIMO_TURNO = "cam.ultimoTurno";
 
 const $ = (s) => document.querySelector(s);
@@ -133,23 +133,34 @@ function actualizarEstadoFin() {
   $("#pendientes").textContent = n === 1 ? "Hay 1 turno esperando señal para subir." : `Hay ${n} turnos esperando señal para subir.`;
 }
 
-// Km de cierre del último turno: desde Firestore, o el último valor guardado en este celular.
+// La camioneta trabaja en 2 turnos de 12 horas. El cierre solo sirve como km inicial si es el del turno
+// inmediatamente anterior: si pasaron más de 14 horas, ese turno no se registró y el dato ya no corresponde.
+const VIGENCIA_CIERRE_MS = 14 * 60 * 60 * 1000;
+const cierreVigente = (c) => !!c && Number.isFinite(Date.parse(c.cerradoEn)) && Date.now() - Date.parse(c.cerradoEn) <= VIGENCIA_CIERRE_MS;
+
+// Km de cierre del turno anterior (solo si está vigente): desde Firestore, o el último guardado en este celular.
 async function ultimoKmCerrado() {
+  let cierre = null;
   try {
     await sesion;
     const snap = await conLimite(getDocs(query(collection(db, "cierres"), orderBy("cerradoEn", "desc"), limit(1))), 10000);
     if (!snap.empty) {
-      const km = snap.docs[0].data().kmFinal;
-      localStorage.setItem(KEY_ULTIMO_KM, JSON.stringify(km));
-      return km;
+      const d = snap.docs[0].data();
+      cierre = { km: d.kmFinal, cerradoEn: d.cerradoEn };
+      localStorage.setItem(KEY_ULTIMO_KM, JSON.stringify(cierre));
+    } else {
+      localStorage.removeItem(KEY_ULTIMO_KM);
     }
-  } catch { /* sin conexión: usa el valor guardado */ }
-  return JSON.parse(localStorage.getItem(KEY_ULTIMO_KM) ?? "null");
+  } catch {
+    // Sin conexión: usa el valor guardado.
+    try { cierre = JSON.parse(localStorage.getItem(KEY_ULTIMO_KM) ?? "null"); } catch { cierre = null; }
+  }
+  return cierreVigente(cierre) ? cierre.km : null;
 }
 
 // Registra solo el km del cierre, sin chofer ni salidas: es lo único que otro chofer necesita (y puede) leer.
 function guardarCierre(id, turno) {
-  localStorage.setItem(KEY_ULTIMO_KM, JSON.stringify(turno.kmFinal));
+  localStorage.setItem(KEY_ULTIMO_KM, JSON.stringify({ km: turno.kmFinal, cerradoEn: turno.cerradoEn }));
   setDoc(doc(db, "cierres", id), {
     turno: turno.turno,
     cerradoEn: turno.cerradoEn,
@@ -782,12 +793,12 @@ async function arrancar(user) {
   sugerirKmInicial();
 }
 
-// El km inicial se llena solo con el km de cierre del turno anterior. El chofer lo compara con el odómetro
+// El km inicial se llena solo con el km de cierre del turno anterior, si ese turno se registró. El chofer lo compara con el odómetro
 // y lo corrige si no coincide (en ese caso queda la alerta de km sin registrar).
 async function sugerirKmInicial() {
   const km = await ultimoKmCerrado();
   $("#km-anterior").textContent = km == null
-    ? "Primer turno: no hay cierre anterior. Escribe el km que marca el odómetro."
+    ? "No hay cierre registrado del turno anterior. Escribe el km que marca el odómetro."
     : `Cierre del turno anterior: ${fmtKm(km)} km. Ya viene puesto; corrígelo solo si el odómetro marca otro valor.`;
   const campo = $("#form-inicio").kmInicio;
   if (km != null && !activo && campo.value === "") campo.value = km;
