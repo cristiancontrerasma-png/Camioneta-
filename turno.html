@@ -40,7 +40,7 @@ if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
     const t = snap.data();
     const salidas = (t.salidas || []).map((s) => `${fechaHora(s.hora)} · ${esc(s.motivo)} (autorizó ${esc(s.autorizadaPor)})`).join("<br>") || "Ninguna";
     const comb = t.combustible?.cargo ? `${t.combustible.litros ? esc(t.combustible.litros) + " L" : "litros no informados"}` : "Sin carga";
-    const sinVerificar = (ok) => (ok === false ? " (hora no verificada)" : "");
+    const sinVerificar = () => ""; // La leyenda no se muestra: en iPhone saldría siempre. El dato sigue en el CSV de Jefes.
     const ck = contarChecklist(t.checklist);
     const filasCk = CHECKLIST.map((it, i) => `<tr class="${t.checklist?.[it.id] === "no" ? "no" : ""}"><td>${i + 1}. ${esc(it.texto)}</td><td>${RESPUESTAS[t.checklist?.[it.id]] ?? "—"}</td></tr>`).join("");
     const nombres = Array.isArray(t.fotos) ? t.fotos : Object.keys(t.fotos || {});

@@ -1,4 +1,4 @@
-const CACHE = "camioneta-v27";
+const CACHE = "camioneta-v28";
 const SDK = "https://www.gstatic.com/firebasejs/10.12.2/";
 const LOCALES = [
   "./", "index.html", "styles.css", "app.js", "cuenta.js", "checklist.js", "instalar.js", "fb.js", "exif.js", "firebase-config.js",
@@ -8,7 +8,7 @@ const LOCALES = [
 const EXTERNOS = ["firebase-app.js", "firebase-app-check.js", "firebase-auth.js", "firebase-firestore.js"].map((f) => SDK + f);
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll([...LOCALES, ...EXTERNOS])));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll([...LOCALES, ...EXTERNOS].map((u) => new Request(u, { cache: "reload" })))));
   self.skipWaiting();
 });
 
@@ -34,16 +34,19 @@ self.addEventListener("fetch", (e) => {
   }
   if (url.origin !== location.origin) return;
 
-  // Archivos de la app: responde con la copia guardada y la renueva en segundo plano,
-  // así las actualizaciones llegan en la siguiente apertura.
+  // Archivos de la app: primero la red (sin caché del navegador), para que cada cambio llegue en la misma apertura.
+  // Si no hay señal o la red tarda más de 4 segundos, responde con la copia guardada.
   const clave = url.origin + url.pathname;
   e.respondWith(caches.open(CACHE).then(async (c) => {
-    const guardada = await c.match(clave);
-    const red = fetch(e.request).then((r) => {
+    const red = fetch(e.request.url, { cache: "no-cache" }).then((r) => {
       if (r.ok) c.put(clave, r.clone());
       return r;
     });
-    if (guardada) { e.waitUntil(red.catch(() => {})); return guardada; }
-    return red.catch(() => c.match("index.html"));
+    const guardada = await c.match(clave);
+    if (!guardada) return red.catch(() => c.match("index.html"));
+    e.waitUntil(red.catch(() => {}));
+    const espera = new Promise((ok) => setTimeout(() => ok(null), 4000));
+    const r = await Promise.race([red.catch(() => null), espera]);
+    return r && r.ok ? r : guardada;
   }));
 });

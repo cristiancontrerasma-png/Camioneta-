@@ -18,6 +18,8 @@ const MINUTOS_MAX_FOTO_FINAL = 5;   // tiempo máximo entre la foto del odómetr
 const LADO_MAX_FOTO = 800;          // lado mayor de cada foto, en pixeles
 const PESO_MAX_FOTO = 400000;      // tamaño máximo de cada foto ya comprimida (caracteres base64)
 const MAX_RECORRIDO_KM = 500;       // sobre este recorrido se pide confirmar el km final
+// Versión visible en pantalla, para saber qué versión tiene cada teléfono.
+const VERSION = "28";
 const KEY_ULTIMO_KM = "cam.ultimoCierre";
 const KEY_ULTIMO_TURNO = "cam.ultimoTurno";
 
@@ -228,7 +230,7 @@ function renderInicio() {
     f.kmInicio.value = activo.kmInicio;
   }
   f.chofer.value = perfil.nombre;
-  $("#quien").textContent = `Sesión: ${perfil.nombre}`;
+  $("#quien").textContent = `Sesión: ${perfil.nombre} · v${VERSION}`;
   $("#foto-inicio-ok").hidden = !activo?.fotos.inicio;
   $("#recompartir-ultimo").hidden = !ultimo || !!activo;
 }
