@@ -19,7 +19,7 @@ const LADO_MAX_FOTO = 800;          // lado mayor de cada foto, en pixeles
 const PESO_MAX_FOTO = 400000;      // tamaño máximo de cada foto ya comprimida (caracteres base64)
 const MAX_RECORRIDO_KM = 500;       // sobre este recorrido se pide confirmar el km final
 // Versión visible en pantalla, para saber qué versión tiene cada teléfono.
-const VERSION = "28";
+const VERSION = "29";
 const KEY_ULTIMO_KM = "cam.ultimoCierre";
 const KEY_ULTIMO_TURNO = "cam.ultimoTurno";
 
@@ -795,15 +795,13 @@ async function arrancar(user) {
   sugerirKmInicial();
 }
 
-// El km inicial se llena solo con el km de cierre del turno anterior, si ese turno se registró. El chofer lo compara con el odómetro
-// y lo corrige si no coincide (en ese caso queda la alerta de km sin registrar).
+// El km inicial nunca se llena solo: el chofer escribe siempre lo que marca el odómetro.
+// El cierre del turno anterior se muestra solo como referencia (y sirve para la alerta de km sin registrar).
 async function sugerirKmInicial() {
   const km = await ultimoKmCerrado();
   $("#km-anterior").textContent = km == null
-    ? "No hay cierre registrado del turno anterior. Escribe el km que marca el odómetro."
-    : `Cierre del turno anterior: ${fmtKm(km)} km. Ya viene puesto; corrígelo solo si el odómetro marca otro valor.`;
-  const campo = $("#form-inicio").kmInicio;
-  if (km != null && !activo && campo.value === "") campo.value = km;
+    ? "Escribe el km que marca el odómetro."
+    : `Referencia: el turno anterior cerró con ${fmtKm(km)} km. Escribe el km que marca el odómetro.`;
 }
 
 const usuarioInicial = await primerEstado();
