@@ -19,7 +19,7 @@ const LADO_MAX_FOTO = 800;          // lado mayor de cada foto, en pixeles
 const PESO_MAX_FOTO = 400000;      // tamaño máximo de cada foto ya comprimida (caracteres base64)
 const MAX_RECORRIDO_KM = 500;       // sobre este recorrido se pide confirmar el km final
 // Versión visible en pantalla, para saber qué versión tiene cada teléfono.
-const VERSION = "29";
+const VERSION = "30";
 const KEY_ULTIMO_KM = "cam.ultimoCierre";
 const KEY_ULTIMO_TURNO = "cam.ultimoTurno";
 
@@ -230,6 +230,7 @@ function renderInicio() {
     f.kmInicio.value = activo.kmInicio;
   }
   f.chofer.value = perfil.nombre;
+  $("#descartar-inicio").hidden = !activo;
   $("#quien").textContent = `Sesión: ${perfil.nombre} · v${VERSION}`;
   $("#foto-inicio-ok").hidden = !activo?.fotos.inicio;
   $("#recompartir-ultimo").hidden = !ultimo || !!activo;
@@ -449,7 +450,6 @@ $("#checklist-obs").addEventListener("input", (e) => {
 let volverACierre = false;
 $("#volver-inicio").addEventListener("click", () => { volverACierre = false; renderInicio(); ir("vista-inicio"); });
 $("#corregir-desde-cierre").addEventListener("click", () => { volverACierre = true; renderInicio(); ir("vista-inicio"); });
-$("#corregir-inicio-cierre").addEventListener("click", () => { renderInicio(); ir("vista-inicio"); });
 
 // Lo que falta del estado de la camioneta para poder cerrar el turno.
 function faltantesEstado() {
@@ -670,6 +670,22 @@ $("#form-cierre").addEventListener("submit", (e) => {
 });
 
 $("#recompartir").addEventListener("click", () => { if (ultimo) compartir(ultimo); });
+// Descartar el turno en curso: se borra del teléfono sin subir nada a la nube. Pide confirmación.
+document.querySelectorAll("[data-descartar]").forEach((b) => b.addEventListener("click", async () => {
+  if (!activo) return;
+  if (!confirm("¿Descartar este turno?\n\nSe borran los datos y las fotos de este turno, y no se envía nada. No se puede deshacer.")) return;
+  activo = null;
+  fotoInicioTmp = null;
+  volverACierre = false;
+  recorridoConfirmado = null;
+  await guardarLocal({ [claveActivo()]: null }).catch(avisarFalloLocal);
+  $("#form-inicio").reset();
+  $("#form-cierre").reset();
+  renderInicio();
+  sugerirKmInicial();
+  ir("vista-inicio");
+}));
+
 $("#nuevo-turno").addEventListener("click", () => {
   $("#form-inicio").reset();
   $("#form-cierre").reset();

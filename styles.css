@@ -81,3 +81,5 @@ input[readonly] { background: #eef0f2; color: #444; }
 .ck-tabla td { padding: 7px 4px; border-bottom: 1px solid #e3e6ea; vertical-align: top; }
 .ck-tabla td:last-child { text-align: right; font-weight: 600; white-space: nowrap; }
 .ck-tabla tr.no td { color: #b00020; }
+
+.peligro { background: none; color: #b3261e; border: 0; width: 100%; margin-top: 14px; padding: 10px; font-size: 0.95rem; text-decoration: underline; }
