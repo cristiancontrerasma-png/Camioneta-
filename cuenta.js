@@ -17,12 +17,13 @@ const DOMINIO = "camioneta.example.com";
 const KEY_PERFIL = "cam.perfil";
 const KEY_CAMBIAR = "cam.debeCambiarClave";
 
-// Cuentas con usuario fijo (administradores y jefes). El resto se registra con su nombre y apellido.
+// Cuentas con usuario fijo (administradores, jefes y choferes designados). El resto se registra con su nombre y apellido.
 export const CUENTAS_INICIALES = {
   navaria1: "Ian Navarro",
   contrcr3: "Cristian Contreras",
   cerdaju2: "Julio Cerda",
   moyara2: "Raúl Moya",
+  millaju1: "Julio Millacura",
 };
 // Cuentas que nacen con un rol sin pasar por la espera. Las reglas de Firestore solo lo aceptan para esos usuarios.
 // Ian Navarro (Navaria1) queda como administrador apenas crea su cuenta, con acceso a todos los datos.
