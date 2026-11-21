@@ -8,6 +8,7 @@ import {
   auth, primerEstado, entrar, registrar, asegurarPerfil, validar, mensajeError, salir,
   CLAVE_INICIAL, CUENTAS_INICIALES, usuarioDe, ultimoUsuario, marcarCambioClave, debeCambiarClave, validarClaveNueva, cambiarClave,
 } from "./cuenta.js";
+import { CONDUCTORES } from "./conductores.js";
 
 const db = initializeFirestore(fb, { localCache: persistentLocalCache() });
 
@@ -19,12 +20,13 @@ const LADO_MAX_FOTO = 800;          // lado mayor de cada foto, en pixeles
 const PESO_MAX_FOTO = 400000;      // tamaño máximo de cada foto ya comprimida (caracteres base64)
 const MAX_RECORRIDO_KM = 500;       // sobre este recorrido se pide confirmar el km final
 // Versión visible en pantalla, para saber qué versión tiene cada teléfono.
-const VERSION = "32";
+const VERSION = "33";
 const KEY_ULTIMO_KM = "cam.ultimoCierre";
 const KEY_ULTIMO_TURNO = "cam.ultimoTurno";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const mismoNombre = (a, b) => String(a).trim().toLocaleLowerCase("es").replace(/\s+/g, " ") === String(b).trim().toLocaleLowerCase("es").replace(/\s+/g, " ");
 const fmtKm = (n) => Number(n || 0).toLocaleString("es-CL");
 const hora = (iso) => new Date(iso).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false });
 const fechaHora = (iso) => new Date(iso).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short", hour12: false });
@@ -229,12 +231,18 @@ function renderInicio() {
     f.turno.value = activo.turno;
     f.kmInicio.value = activo.kmInicio;
   }
-  f.chofer.value = perfil.nombre;
+  f.chofer.value = activo?.chofer ?? CONDUCTORES[f.turno.value] ?? perfil.nombre;
   $("#descartar-inicio").hidden = !activo;
   $("#quien").textContent = `Sesión: ${perfil.nombre} · v${VERSION}`;
   $("#foto-inicio-ok").hidden = !activo?.fotos.inicio;
   $("#recompartir-ultimo").hidden = !ultimo || !!activo;
 }
+
+// Al elegir el turno, el nombre del conductor se llena con el de ese turno (o con la cuenta, si el turno no tiene uno fijo).
+$("#turno").addEventListener("change", () => {
+  const f = $("#form-inicio");
+  f.chofer.value = CONDUCTORES[f.turno.value] ?? perfil.nombre;
+});
 
 // La hora de inicio es la de captura de la foto del odómetro inicial, no la del botón Continuar.
 let fotoInicioTmp = null;
@@ -262,7 +270,7 @@ $("#form-inicio").addEventListener("submit", async (e) => {
   const msg = $("#msg-inicio");
   msg.textContent = "";
   const turno = f.turno.value;
-  const chofer = perfil.nombre;
+  const chofer = f.chofer.value.trim() || perfil.nombre;
   const kmInicio = Number(f.kmInicio.value);
   if (!turno || !chofer) { msg.textContent = "Selecciona el turno e indica el nombre del chofer."; return; }
   if (!Number.isInteger(kmInicio) || kmInicio <= 0) { msg.textContent = "Ingresa el kilometraje inicial."; return; }
@@ -274,6 +282,7 @@ $("#form-inicio").addEventListener("submit", async (e) => {
     conductor: `${turno} · ${chofer}`,
     turno,
     chofer,
+    registradoPor: perfil.nombre, // quién tenía la sesión abierta (puede ser un reemplazo)
     kmInicio,
     alertas: alertaKm(kmInicio, kmAnterior),
   };
@@ -574,6 +583,7 @@ function resumen(t) {
   return [
     "🚚 OHLA Chile · Camioneta de Servicios Túnel",
     `Conductor: ${t.conductor}`,
+    ...(t.registradoPor ? [`Registrado por: ${t.registradoPor}`] : []),
     `Inicio de turno (foto odómetro): ${fechaHora(t.fecha)}`,
     `Km inicio: ${fmtKm(t.kmInicio)} · Km final: ${fmtKm(t.kmFinal)} · Recorrido: ${fmtKm(t.recorrido)} km`,
     `Término de turno (foto odómetro final): ${t.odometroFinal ? fechaHora(t.odometroFinal) : "sin foto"}`,
@@ -628,6 +638,8 @@ $("#form-cierre").addEventListener("submit", (e) => {
   const turno = {
     turno: activo.turno,
     chofer: activo.chofer,
+    // Solo se guarda si la sesión es de otra persona que el conductor del turno (un reemplazo).
+    ...(activo.registradoPor && !mismoNombre(activo.registradoPor, activo.chofer) ? { registradoPor: activo.registradoPor } : {}),
     conductor: activo.conductor,
     fecha: activo.fecha,
     inicioVerificado: activo.inicioVerificado ?? false,

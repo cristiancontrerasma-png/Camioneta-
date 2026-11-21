@@ -573,7 +573,7 @@ $("#form-editar").addEventListener("submit", async (e) => {
 });
 
 $("#exportar").addEventListener("click", () => {
-  const cols = ["creadoEn", "fecha", "odometroFinal", "turno", "chofer", "kmInicio", "kmFinal", "recorrido", "inicioVerificado", "finalVerificado", "checklist", "checklistNo", "checklistObs", "limpieza", "combustible", "salidas", "novedad", "alertas", "editadoEn"];
+  const cols = ["creadoEn", "fecha", "odometroFinal", "turno", "chofer", "registradoPor", "kmInicio", "kmFinal", "recorrido", "inicioVerificado", "finalVerificado", "checklist", "checklistNo", "checklistObs", "limpieza", "combustible", "salidas", "novedad", "alertas", "editadoEn"];
   const texto = {
     limpieza: (t) => (t.limpieza ? "sí" : "no"),
     inicioVerificado: (t) => (t.inicioVerificado ? "sí" : "no"),

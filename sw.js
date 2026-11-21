@@ -1,7 +1,7 @@
-const CACHE = "camioneta-v32";
+const CACHE = "camioneta-v33";
 const SDK = "https://www.gstatic.com/firebasejs/10.12.2/";
 const LOCALES = [
-  "./", "index.html", "styles.css", "app.js", "cuenta.js", "checklist.js", "instalar.js", "fb.js", "exif.js", "firebase-config.js",
+  "./", "index.html", "styles.css", "app.js", "cuenta.js", "checklist.js", "conductores.js", "instalar.js", "fb.js", "exif.js", "firebase-config.js",
   "turno.html", "admin.html", "manifest.json", "icon.svg", "logo.png", "icon-180.png", "icon-192.png", "icon-512.png",
 ];
 // El SDK de Firebase también se guarda, para que la app abra sin señal.
