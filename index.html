@@ -88,7 +88,7 @@
         <input name="kmInicio" type="number" inputmode="numeric" min="1" required>
       </label>
       <label>Foto del odómetro (inicio)
-        <input name="fotoInicio" type="file" accept="image/*">
+        <input name="fotoInicio" type="file" accept="image/*" capture="environment">
       </label>
       <p class="ayuda" id="foto-inicio-ok" hidden>Foto del odómetro ya guardada ✓ (puedes reemplazarla)</p>
       <button type="submit" class="primario">Continuar</button>
@@ -120,7 +120,7 @@
       <label><input type="checkbox" name="cargoCombustible"> Se cargó combustible en este turno</label>
       <div id="carga-detalle" hidden>
         <label>Litros cargados <input name="litros" type="number" inputmode="decimal" min="0" step="0.1"></label>
-        <label>Foto del medidor de combustible <input name="fotoCombustible" type="file" accept="image/*"></label>
+        <label>Foto del medidor de combustible <input name="fotoCombustible" type="file" accept="image/*" capture="environment"></label>
         <p class="ayuda" id="foto-combustible-ok" hidden>Foto del medidor guardada ✓</p>
       </div>
     </div>
@@ -143,7 +143,7 @@
     <div id="lista-checklist"></div>
     <p class="alerta" id="aviso-no" hidden></p>
     <div class="card">
-      <label>Observaciones u otro (obligatorio si marcaste algún NO) <textarea id="checklist-obs" rows="2"></textarea></label>
+      <label>Observaciones u otro (obligatorio si marcaste algún NO) <textarea id="checklist-obs" rows="2" maxlength="1000"></textarea></label>
     </div>
     <button class="primario" id="cerrar-checklist">Guardar y volver</button>
   </section>
@@ -160,14 +160,14 @@
       <button type="button" class="secundario" id="corregir-desde-cierre">Corregir km inicial o su foto</button>
       <button type="button" class="secundario" data-ir="vista-estado">Cambiar fotos, check list o combustible</button>
       <label>Foto del odómetro final (tómala al terminar; no puede tener más de 5 minutos)
-        <input name="fotoFinal" type="file" accept="image/*">
+        <input name="fotoFinal" type="file" accept="image/*" capture="environment">
       </label>
       <label>Kilometraje final
         <input name="kmFinal" type="number" inputmode="numeric">
       </label>
       <p>Recorrido: <strong id="recorrido-txt">—</strong></p>
       <label>Novedades
-        <textarea name="novedad" rows="3" placeholder="Sin novedades"></textarea>
+        <textarea name="novedad" rows="3" maxlength="1500" placeholder="Sin novedades"></textarea>
       </label>
       <label>Foto de novedad (opcional)
         <input name="fotoNovedad" type="file" accept="image/*">
@@ -193,7 +193,7 @@
         </select>
       </label>
       <label>Motivo de la salida
-        <textarea name="motivo" rows="3" required placeholder="Ej.: retiro de material en bodega central"></textarea>
+        <textarea name="motivo" rows="3" required maxlength="300" placeholder="Ej.: retiro de material en bodega central"></textarea>
       </label>
       <p class="msg" id="msg-salida"></p>
       <button type="submit" class="primario">Registrar salida</button>

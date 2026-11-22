@@ -1,4 +1,4 @@
-const CACHE = "camioneta-v33";
+const CACHE = "camioneta-v34";
 const SDK = "https://www.gstatic.com/firebasejs/10.12.2/";
 const LOCALES = [
   "./", "index.html", "styles.css", "app.js", "cuenta.js", "checklist.js", "conductores.js", "instalar.js", "fb.js", "exif.js", "firebase-config.js",
@@ -43,7 +43,9 @@ self.addEventListener("fetch", (e) => {
       return r;
     });
     const guardada = await c.match(clave);
-    if (!guardada) return red.catch(() => c.match("index.html"));
+    // Sin copia y sin señal: a una página se le responde con la pantalla de inicio; a un script o estilo, con un error
+  // (entregarle HTML a un módulo de JavaScript dejaría la app en blanco).
+  if (!guardada) return red.catch(() => (e.request.mode === "navigate" ? c.match("index.html") : new Response("", { status: 503 })));
     e.waitUntil(red.catch(() => {}));
     const espera = new Promise((ok) => setTimeout(() => ok(null), 4000));
     const r = await Promise.race([red.catch(() => null), espera]);

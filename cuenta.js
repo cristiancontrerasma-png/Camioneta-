@@ -25,9 +25,9 @@ export const CUENTAS_INICIALES = {
   moyara2: "Raúl Moya",
   millaju1: "Julio Millacura",
 };
-// Cuentas que nacen con un rol sin pasar por la espera. Las reglas de Firestore solo lo aceptan para esos usuarios.
-// Ian Navarro (Navaria1) queda como administrador apenas crea su cuenta, con acceso a todos los datos.
-export const ROLES_INICIALES = { navaria1: "admin" };
+// Ninguna cuenta nace con rol: todas quedan "pendientes" y un administrador (desde la página de Jefes) las crea o autoriza.
+// Antes Navaria1 nacía administrador; se quitó porque cualquiera que llegara primero podía quedarse con esa cuenta.
+export const ROLES_INICIALES = {};
 // Clave de partida de esas cuentas. Quien entra con ella debe cambiarla antes de usar la app.
 export const CLAVE_INICIAL = "123456";
 

@@ -586,7 +586,12 @@ $("#exportar").addEventListener("click", () => {
     turno: turnoDe,
     chofer: choferDe,
   };
-  const celda = (t, c) => `"${String(texto[c] ? texto[c](t) : t[c] ?? "").replaceAll('"', '""')}"`;
+  // Un texto que empiece con = + - @ lo ejecutaría Excel como fórmula: se le antepone una comilla simple.
+  const celda = (t, c) => {
+    let v = texto[c] ? texto[c](t) : t[c] ?? "";
+    if (typeof v === "string" && /^[=+\-@\t\r]/.test(v)) v = "'" + v;
+    return `"${String(v).replaceAll('"', '""')}"`;
+  };
   const filas = [cols.join(";"), ...visibles().map((t) => cols.map((c) => celda(t, c)).join(";"))];
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + filas.join("\n")], { type: "text/csv;charset=utf-8" }));

@@ -6,7 +6,7 @@ import { horaDeFoto } from "./exif.js";
 import { CHECKLIST, GRUPOS, RESPUESTAS, CHECKLIST_AVISO, contarChecklist, itemsConNo } from "./checklist.js";
 import {
   auth, primerEstado, entrar, registrar, asegurarPerfil, validar, mensajeError, salir,
-  CLAVE_INICIAL, CUENTAS_INICIALES, usuarioDe, ultimoUsuario, marcarCambioClave, debeCambiarClave, validarClaveNueva, cambiarClave,
+  CLAVE_INICIAL, CUENTAS_INICIALES, usuarioDe, usuarioDeCorreo, ultimoUsuario, marcarCambioClave, debeCambiarClave, validarClaveNueva, cambiarClave,
 } from "./cuenta.js";
 import { CONDUCTORES } from "./conductores.js";
 
@@ -20,7 +20,7 @@ const LADO_MAX_FOTO = 800;          // lado mayor de cada foto, en pixeles
 const PESO_MAX_FOTO = 400000;      // tamaño máximo de cada foto ya comprimida (caracteres base64)
 const MAX_RECORRIDO_KM = 500;       // sobre este recorrido se pide confirmar el km final
 // Versión visible en pantalla, para saber qué versión tiene cada teléfono.
-const VERSION = "33";
+const VERSION = "34";
 const KEY_ULTIMO_KM = "cam.ultimoCierre";
 const KEY_ULTIMO_TURNO = "cam.ultimoTurno";
 
@@ -68,8 +68,10 @@ let pendientes = [];    // turnos cerrados que aún no suben
 let ultimo = JSON.parse(localStorage.getItem(KEY_ULTIMO_TURNO) ?? "null"); // último turno cerrado (sin fotos), para compartir de nuevo
 let perfil = null;      // cuenta que está usando la app: { uid, nombre, rol }
 // El turno en curso se guarda por cuenta: si otro chofer entra en el mismo teléfono, no ve ni pisa el turno ajeno.
-const claveActivo = () => `activo:${perfil.uid}`;
-const mios = () => pendientes.filter((p) => p.uid === perfil?.uid);
+// Se identifica por el nombre de usuario (no por el uid): si un administrador reinicia la clave, la cuenta cambia de uid
+// pero el turno en curso y los pendientes de esa persona siguen siendo suyos.
+const claveActivo = () => `activo:${perfil.usuario}`;
+const mios = () => pendientes.filter((p) => (p.usuario ? p.usuario === perfil?.usuario : p.uid === perfil?.uid));
 
 const guardarActivo = () => guardarLocal({ [claveActivo()]: activo }).catch(avisarFalloLocal);
 const guardarPendientes = () => guardarLocal({ pendientes }).catch(avisarFalloLocal);
@@ -140,16 +142,19 @@ function actualizarEstadoFin() {
 // La camioneta trabaja en 2 turnos de 12 horas. El cierre solo sirve como km inicial si es el del turno
 // inmediatamente anterior: si pasaron más de 14 horas, ese turno no se registró y el dato ya no corresponde.
 const VIGENCIA_CIERRE_MS = 14 * 60 * 60 * 1000;
-const cierreVigente = (c) => !!c && Number.isFinite(Date.parse(c.cerradoEn)) && Date.now() - Date.parse(c.cerradoEn) <= VIGENCIA_CIERRE_MS;
+// Un cierre con fecha en el futuro (celular con la hora mal puesta) no sirve de referencia.
+const TOLERANCIA_RELOJ_MS = 5 * 60 * 1000;
+const enFuturo = (c) => Date.parse(c.cerradoEn) > Date.now() + TOLERANCIA_RELOJ_MS;
+const cierreVigente = (c) => !!c && Number.isFinite(Date.parse(c.cerradoEn)) && !enFuturo(c) && Date.now() - Date.parse(c.cerradoEn) <= VIGENCIA_CIERRE_MS;
 
 // Km de cierre del turno anterior (solo si está vigente): desde Firestore, o el último guardado en este celular.
 async function ultimoKmCerrado() {
   let cierre = null;
   try {
     await sesion;
-    const snap = await conLimite(getDocs(query(collection(db, "cierres"), orderBy("cerradoEn", "desc"), limit(1))), 10000);
-    if (!snap.empty) {
-      const d = snap.docs[0].data();
+    const snap = await conLimite(getDocs(query(collection(db, "cierres"), orderBy("cerradoEn", "desc"), limit(10))), 10000);
+    const d = snap.docs.map((x) => x.data()).find((x) => !enFuturo(x));   // salta los que traen una fecha futura
+    if (d) {
       cierre = { km: d.kmFinal, cerradoEn: d.cerradoEn };
       localStorage.setItem(KEY_ULTIMO_KM, JSON.stringify(cierre));
     } else {
@@ -337,7 +342,7 @@ function renderEstado() {
     <label class="pano ${activo.paneles[k] ? "listo" : ""}">
       ${activo.paneles[k] ? `<img src="${activo.paneles[k]}" alt="${nombre}">` : `<span class="vacio">Sin foto</span>`}
       <strong>${nombre}</strong>
-      <input class="sr-only" type="file" accept="image/*" data-pano="${k}">
+      <input class="sr-only" type="file" accept="image/*" capture="environment" data-pano="${k}">
       <span class="btn-mini">${activo.paneles[k] ? "Repetir foto" : "Tomar foto"}</span>
     </label>`).join("");
   const al = $("#alertas-turno");
@@ -667,8 +672,8 @@ $("#form-cierre").addEventListener("submit", (e) => {
 
   const id = crypto.randomUUID();
   guardarCierre(id, turno);
-  const pendiente = { id, uid: perfil.uid, turno, fotos, urls: {}, creadoEn: cerradoEn };
-  ultimo = { id, uid: perfil.uid, turno };
+  const pendiente = { id, uid: perfil.uid, usuario: perfil.usuario, turno, fotos, urls: {}, creadoEn: cerradoEn };
+  ultimo = { id, uid: perfil.uid, usuario: perfil.usuario, turno };
   localStorage.setItem(KEY_ULTIMO_TURNO, JSON.stringify(ultimo));
   pendientes = [...pendientes, pendiente];
   activo = null;
@@ -714,6 +719,8 @@ $("#form-acceso").addEventListener("submit", async (e) => {
   const crear = e.submitter?.value === "crear";
   const falta = validar(f.nombre.value, f.clave.value, crear);
   if (falta) { msg.textContent = falta; return; }
+  // Los usuarios fijos (administradores y jefes) los crea un administrador: nadie puede quedarse con el nombre de otro.
+  if (crear && CUENTAS_INICIALES[usuarioDe(f.nombre.value)]) { msg.textContent = "Esa cuenta la crea un administrador. Pídele que la cree y entra con «Entrar» y la clave provisoria."; return; }
   const conClaveInicial = f.clave.value === CLAVE_INICIAL;
   msg.textContent = crear ? "Creando cuenta…" : "Entrando…";
   try {
@@ -721,14 +728,7 @@ $("#form-acceso").addEventListener("submit", async (e) => {
     if (crear) {
       user = await registrar(db, f.nombre.value, f.clave.value);
     } else {
-      try {
-        user = await entrar(db, f.nombre.value, f.clave.value);
-      } catch (err) {
-        // Usuarios fijos (Navaria1, Cerdaju2...): la primera vez basta con «Entrar» y la clave inicial; la cuenta se crea sola.
-        const primeraVez = CUENTAS_INICIALES[usuarioDe(f.nombre.value)] && conClaveInicial && String(err?.code).includes("invalid-credential");
-        if (!primeraVez) throw err;
-        user = await registrar(db, f.nombre.value, f.clave.value).catch(() => { throw err; });
-      }
+      user = await entrar(db, f.nombre.value, f.clave.value);
     }
     f.reset();
     msg.textContent = "";
@@ -794,6 +794,7 @@ async function arrancar(user) {
   if (debeCambiarClave(user.uid)) { mostrarCambioClave(true); return; } // la clave inicial no sirve para usar la app
   try {
     perfil = await asegurarPerfil(db, user);
+    perfil.usuario ??= usuarioDeCorreo(user.email);
   } catch {
     $("#msg-acceso").textContent = "No se pudo cargar tu cuenta. Revisa la señal e intenta de nuevo.";
     ir("vista-acceso");
@@ -807,10 +808,18 @@ async function arrancar(user) {
     return;
   }
   try {
-    activo = (await leerLocal(claveActivo())) ?? null;
+    const guardado = await leerLocal(claveActivo());
+    if (guardado !== undefined) {
+      activo = guardado;
+    } else {
+      // Turno en curso guardado por una versión anterior (con el uid): se pasa a la clave nueva una sola vez.
+      const viejo = await leerLocal(`activo:${perfil.uid}`);
+      activo = viejo ?? null;
+      if (viejo) await guardarLocal({ [claveActivo()]: viejo, [`activo:${perfil.uid}`]: null });
+    }
     pendientes = (await leerLocal("pendientes")) ?? [];
   } catch (err) { avisarFalloLocal(err); }
-  if (ultimo && ultimo.uid !== perfil.uid) ultimo = null; // "compartir de nuevo" es solo para quien cerró ese turno
+  if (ultimo && (ultimo.usuario ? ultimo.usuario !== perfil.usuario : ultimo.uid !== perfil.uid)) ultimo = null; // "compartir de nuevo" es solo para quien cerró ese turno
   sesionLista();
   $("#salir").hidden = false;
   $("#link-jefes").hidden = !["jefe", "admin"].includes(perfil.rol);
