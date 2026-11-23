@@ -477,7 +477,7 @@ function render() {
         <button data-borrar="${esc(t.id)}" class="secundario">Borrar</button>` : ""}
       </td>
       <td>${fecha(t.fecha)}</td>
-      <td>${esc(t.conductor)}${(t.alertas || []).length ? `<br><span class="con-alerta">⚠️ Alerta de km</span>` : ""}</td>
+      <td>${esc(t.conductor)}${t.patente ? `<br><span class="ayuda">${esc(t.patente)}</span>` : ""}${(t.alertas || []).length ? `<br><span class="con-alerta">⚠️ Alerta de km</span>` : ""}</td>
       <td>${fmtKm(t.kmInicio)}</td>
       <td>${fmtKm(t.kmFinal)}</td>
       <td>${fmtKm(t.recorrido)} km</td>
@@ -573,7 +573,7 @@ $("#form-editar").addEventListener("submit", async (e) => {
 });
 
 $("#exportar").addEventListener("click", () => {
-  const cols = ["creadoEn", "fecha", "odometroFinal", "turno", "chofer", "registradoPor", "kmInicio", "kmFinal", "recorrido", "inicioVerificado", "finalVerificado", "checklist", "checklistNo", "checklistObs", "limpieza", "combustible", "salidas", "novedad", "alertas", "editadoEn"];
+  const cols = ["creadoEn", "fecha", "odometroFinal", "turno", "chofer", "patente", "registradoPor", "kmInicio", "kmFinal", "recorrido", "inicioVerificado", "finalVerificado", "checklist", "checklistNo", "checklistObs", "limpieza", "combustible", "salidas", "novedad", "alertas", "editadoEn"];
   const texto = {
     limpieza: (t) => (t.limpieza ? "sí" : "no"),
     inicioVerificado: (t) => (t.inicioVerificado ? "sí" : "no"),

@@ -49,6 +49,7 @@ if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
     $("#contenido").innerHTML = `
       <h2>${esc(t.conductor)}</h2>
       <div class="card">
+        ${t.patente ? `<div class="dato"><span>Patente</span><span>${esc(t.patente)}</span></div>` : ""}
         ${t.registradoPor ? `<div class="dato"><span>Registrado por</span><span>${esc(t.registradoPor)}</span></div>` : ""}
         <div class="dato"><span>Inicio de turno</span><span>${fechaHora(t.fecha)}${sinVerificar(t.inicioVerificado)}</span></div>
         <div class="dato"><span>Término de turno</span><span>${fechaHora(t.odometroFinal)}${sinVerificar(t.finalVerificado)}</span></div>

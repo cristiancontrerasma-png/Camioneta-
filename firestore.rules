@@ -73,7 +73,8 @@ service cloud.firestore {
         && request.resource.data.kmInicio is int
         && request.resource.data.kmFinal >= request.resource.data.kmInicio
         && request.resource.data.fotos is list && request.resource.data.fotos.size() <= 12
-        && request.resource.data.novedad is string && request.resource.data.novedad.size() <= 2000;
+        && request.resource.data.novedad is string && request.resource.data.novedad.size() <= 2000
+        && (!('patente' in request.resource.data) || (request.resource.data.patente is string && request.resource.data.patente.size() <= 10));
       allow list: if esAdmin() || esJefe()
         || (autorizado() && resource.data.uid == request.auth.uid);
       allow update, delete: if esAdmin();

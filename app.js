@@ -20,13 +20,17 @@ const LADO_MAX_FOTO = 800;          // lado mayor de cada foto, en pixeles
 const PESO_MAX_FOTO = 400000;      // tamaño máximo de cada foto ya comprimida (caracteres base64)
 const MAX_RECORRIDO_KM = 500;       // sobre este recorrido se pide confirmar el km final
 // Versión visible en pantalla, para saber qué versión tiene cada teléfono.
-const VERSION = "34";
+const VERSION = "35";
 const KEY_ULTIMO_KM = "cam.ultimoCierre";
 const KEY_ULTIMO_TURNO = "cam.ultimoTurno";
+const KEY_PATENTE = "cam.patente"; // última patente usada en este teléfono, solo para ahorrar escritura
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const mismoNombre = (a, b) => String(a).trim().toLocaleLowerCase("es").replace(/\s+/g, " ") === String(b).trim().toLocaleLowerCase("es").replace(/\s+/g, " ");
+// Patente chilena: 4 letras y 2 números (ABCD12) o 2 letras y 4 números (AB1234). Se aceptan espacios, puntos y guiones al escribirla.
+const normalizarPatente = (s) => String(s ?? "").toUpperCase().replace(/[\s.\-·]/g, "");
+const patenteValida = (p) => /^[A-Z]{4}\d{2}$|^[A-Z]{2}\d{4}$/.test(p);
 const fmtKm = (n) => Number(n || 0).toLocaleString("es-CL");
 const hora = (iso) => new Date(iso).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false });
 const fechaHora = (iso) => new Date(iso).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short", hour12: false });
@@ -237,6 +241,7 @@ function renderInicio() {
     f.kmInicio.value = activo.kmInicio;
   }
   f.chofer.value = activo?.chofer ?? CONDUCTORES[f.turno.value] ?? perfil.nombre;
+  f.patente.value = activo?.patente ?? localStorage.getItem(KEY_PATENTE) ?? "";
   $("#descartar-inicio").hidden = !activo;
   $("#quien").textContent = `Sesión: ${perfil.nombre} · v${VERSION}`;
   $("#foto-inicio-ok").hidden = !activo?.fotos.inicio;
@@ -277,6 +282,8 @@ $("#form-inicio").addEventListener("submit", async (e) => {
   const turno = f.turno.value;
   const chofer = f.chofer.value.trim() || perfil.nombre;
   const kmInicio = Number(f.kmInicio.value);
+  const patente = normalizarPatente(f.patente.value);
+  if (!patenteValida(patente)) { msg.textContent = "Escribe la patente del vehículo, por ejemplo ABCD12 o AB1234."; return; }
   if (!turno || !chofer) { msg.textContent = "Selecciona el turno e indica el nombre del chofer."; return; }
   if (!Number.isInteger(kmInicio) || kmInicio <= 0) { msg.textContent = "Ingresa el kilometraje inicial."; return; }
   if (!fotoInicioTmp && !activo?.fotos.inicio) { msg.textContent = "Toma la foto del odómetro."; return; }
@@ -287,6 +294,7 @@ $("#form-inicio").addEventListener("submit", async (e) => {
     conductor: `${turno} · ${chofer}`,
     turno,
     chofer,
+    patente,
     registradoPor: perfil.nombre, // quién tenía la sesión abierta (puede ser un reemplazo)
     kmInicio,
     alertas: alertaKm(kmInicio, kmAnterior),
@@ -301,6 +309,7 @@ $("#form-inicio").addEventListener("submit", async (e) => {
   }
   fotoInicioTmp = null;
   f.fotoInicio.value = "";
+  localStorage.setItem(KEY_PATENTE, patente);
   guardarActivo();
   if (volverACierre) {
     // Corrección hecha desde la pantalla de cierre: vuelve ahí sin perder lo ya ingresado.
@@ -588,6 +597,7 @@ function resumen(t) {
   return [
     "🚚 OHLA Chile · Camioneta de Servicios Túnel",
     `Conductor: ${t.conductor}`,
+    ...(t.patente ? [`Patente: ${t.patente}`] : []),
     ...(t.registradoPor ? [`Registrado por: ${t.registradoPor}`] : []),
     `Inicio de turno (foto odómetro): ${fechaHora(t.fecha)}`,
     `Km inicio: ${fmtKm(t.kmInicio)} · Km final: ${fmtKm(t.kmFinal)} · Recorrido: ${fmtKm(t.recorrido)} km`,
@@ -643,6 +653,7 @@ $("#form-cierre").addEventListener("submit", (e) => {
   const turno = {
     turno: activo.turno,
     chofer: activo.chofer,
+    patente: activo.patente ?? "",
     // Solo se guarda si la sesión es de otra persona que el conductor del turno (un reemplazo).
     ...(activo.registradoPor && !mismoNombre(activo.registradoPor, activo.chofer) ? { registradoPor: activo.registradoPor } : {}),
     conductor: activo.conductor,
