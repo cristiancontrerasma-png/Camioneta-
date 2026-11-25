@@ -15,12 +15,16 @@ const db = initializeFirestore(fb, { localCache: persistentLocalCache() });
 const TURNOS = ["Turno A", "Turno B", "Turno C", "Turno D"];
 const PANOS = [["frente", "Frente"], ["atras", "Atrás"], ["izq", "Lado izquierdo"], ["der", "Lado derecho"]];
 const MINUTOS_MAX_FOTO_INICIO = 15; // antigüedad máxima de la foto del odómetro inicial
-const MINUTOS_MAX_FOTO_FINAL = 5;   // tiempo máximo entre la foto del odómetro final y el cierre
+// La foto del odómetro final puede venir de la galería: sirve si se tomó después de comenzar el turno (y no en el futuro).
+const fotoFinalValida = (isoHora) => {
+  const t = Date.parse(isoHora);
+  return Number.isFinite(t) && t >= Date.parse(activo.fecha) - 60000 && t <= Date.now() + 5 * 60000;
+};
 const LADO_MAX_FOTO = 800;          // lado mayor de cada foto, en pixeles
 const PESO_MAX_FOTO = 400000;      // tamaño máximo de cada foto ya comprimida (caracteres base64)
 const MAX_RECORRIDO_KM = 500;       // sobre este recorrido se pide confirmar el km final
 // Versión visible en pantalla, para saber qué versión tiene cada teléfono.
-const VERSION = "36";
+const VERSION = "37";
 const KEY_ULTIMO_KM = "cam.ultimoCierre";
 const KEY_ULTIMO_TURNO = "cam.ultimoTurno";
 const KEY_PATENTE = "cam.patente"; // última patente usada en este teléfono, solo para ahorrar escritura
@@ -529,9 +533,8 @@ $("#volver-salida").addEventListener("click", () => ir(origenSalida));
 // ---------- Cierre ----------
 let recorridoConfirmado = null;
 function renderCierre() {
-  // La foto final debe tomarse al cerrar: se descarta si no hay o si ya pasó el límite.
-  // Si el chofer fue a corregir algo y volvió a tiempo, la foto final recién tomada se conserva.
-  if (!activo.fotos.final || minutosDesde(activo.fotos.finalHora) > MINUTOS_MAX_FOTO_FINAL) {
+  // Si no hay foto final, o no cuadra con este turno, se descarta; si no, se conserva aunque el chofer vuelva a corregir algo.
+  if (!activo.fotos.final || !fotoFinalValida(activo.fotos.finalHora)) {
     activo.fotos.final = null;
     activo.fotos.finalHora = null;
     guardarActivo();
@@ -559,9 +562,9 @@ $("#form-cierre").addEventListener("change", async (e) => {
     const file = e.target.files?.[0];
     if (file) {
       const h = await horaDeFoto(file);
-      if (minutosDesde(h.hora) > MINUTOS_MAX_FOTO_FINAL) {
+      if (!fotoFinalValida(h.hora)) {
         e.target.value = "";
-        msg.textContent = `Esa foto tiene más de ${MINUTOS_MAX_FOTO_FINAL} minutos. Toma una nueva del odómetro final.`;
+        msg.textContent = "Esa foto es de antes de comenzar este turno. Elige la foto del odómetro final de hoy.";
       } else {
         activo.fotos.final = await leerFoto(file).catch(() => null);
         activo.fotos.finalHora = h.hora;
@@ -640,12 +643,12 @@ $("#form-cierre").addEventListener("submit", (e) => {
     msg.textContent = `El recorrido sería de ${fmtKm(recorrido)} km. Revisa el km final; si es correcto, presiona de nuevo para cerrar.`;
     return;
   }
-  if (minutosDesde(activo.fotos.finalHora) > MINUTOS_MAX_FOTO_FINAL) {
+  if (!fotoFinalValida(activo.fotos.finalHora)) {
     activo.fotos.final = null;
     activo.fotos.finalHora = null;
     guardarActivo();
     f.fotoFinal.value = "";
-    msg.textContent = `La foto del odómetro final tiene más de ${MINUTOS_MAX_FOTO_FINAL} minutos. Tómala de nuevo.`;
+    msg.textContent = "La foto del odómetro final es de antes de comenzar este turno. Elige la de hoy.";
     return;
   }
 
