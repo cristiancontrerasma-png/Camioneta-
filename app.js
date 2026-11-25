@@ -20,7 +20,7 @@ const LADO_MAX_FOTO = 800;          // lado mayor de cada foto, en pixeles
 const PESO_MAX_FOTO = 400000;      // tamaño máximo de cada foto ya comprimida (caracteres base64)
 const MAX_RECORRIDO_KM = 500;       // sobre este recorrido se pide confirmar el km final
 // Versión visible en pantalla, para saber qué versión tiene cada teléfono.
-const VERSION = "35";
+const VERSION = "36";
 const KEY_ULTIMO_KM = "cam.ultimoCierre";
 const KEY_ULTIMO_TURNO = "cam.ultimoTurno";
 const KEY_PATENTE = "cam.patente"; // última patente usada en este teléfono, solo para ahorrar escritura
@@ -351,7 +351,7 @@ function renderEstado() {
     <label class="pano ${activo.paneles[k] ? "listo" : ""}">
       ${activo.paneles[k] ? `<img src="${activo.paneles[k]}" alt="${nombre}">` : `<span class="vacio">Sin foto</span>`}
       <strong>${nombre}</strong>
-      <input class="sr-only" type="file" accept="image/*" capture="environment" data-pano="${k}">
+      <input class="sr-only" type="file" accept="image/*" data-pano="${k}">
       <span class="btn-mini">${activo.paneles[k] ? "Repetir foto" : "Tomar foto"}</span>
     </label>`).join("");
   const al = $("#alertas-turno");
