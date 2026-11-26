@@ -169,12 +169,8 @@
         <input name="kmFinal" type="number" inputmode="numeric">
       </label>
       <p>Recorrido: <strong id="recorrido-txt">—</strong></p>
-      <label>Novedades
-        <textarea name="novedad" rows="3" maxlength="1500" placeholder="Sin novedades"></textarea>
-      </label>
-      <label>Foto de novedad (opcional)
-        <input name="fotoNovedad" type="file" accept="image/*">
-      </label>
+      <div id="novedades-lista"></div>
+      <button type="button" class="secundario" id="agregar-novedad">+ Agregar otra novedad</button>
       <p class="msg" id="msg-cierre"></p>
       <button type="submit" class="primario verde">Cerrar turno y enviar por WhatsApp</button>
     </form>

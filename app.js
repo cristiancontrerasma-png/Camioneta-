@@ -24,7 +24,7 @@ const LADO_MAX_FOTO = 800;          // lado mayor de cada foto, en pixeles
 const PESO_MAX_FOTO = 400000;      // tamaño máximo de cada foto ya comprimida (caracteres base64)
 const MAX_RECORRIDO_KM = 500;       // sobre este recorrido se pide confirmar el km final
 // Versión visible en pantalla, para saber qué versión tiene cada teléfono.
-const VERSION = "37";
+const VERSION = "38";
 const KEY_ULTIMO_KM = "cam.ultimoCierre";
 const KEY_ULTIMO_TURNO = "cam.ultimoTurno";
 const KEY_PATENTE = "cam.patente"; // última patente usada en este teléfono, solo para ahorrar escritura
@@ -540,12 +540,69 @@ function renderCierre() {
     guardarActivo();
     $("#form-cierre").fotoFinal.value = "";
   }
+  // Novedades: cada una con su texto y su foto. Un turno de una versión anterior trae una sola foto de novedad.
+  if (!activo.novedades) {
+    activo.novedades = [{ texto: "", foto: activo.fotos.novedad ?? null }];
+    delete activo.fotos.novedad;
+    guardarActivo();
+  }
+  renderNovedades();
   $("#km-inicio-txt").textContent = fmtKm(activo.kmInicio);
   $("#recorrido-txt").textContent = "—";
   $("#msg-cierre").textContent = "";
   recorridoConfirmado = null;
   renderSalidas();
 }
+
+// ---------- Novedades (varias, cada una con su foto) ----------
+const MAX_NOVEDADES = 5;           // junto con las otras fotos del turno, cabe en el límite de 12 fotos
+const TOPE_TEXTO_NOVEDADES = 1800; // las reglas aceptan hasta 2000 caracteres entre todas
+function renderNovedades() {
+  const lista = $("#novedades-lista");
+  const n = activo.novedades.length;
+  lista.replaceChildren();
+  activo.novedades.forEach((nov, i) => {
+    const div = document.createElement("div");
+    div.className = "novedad-item";
+    div.innerHTML = `
+      <label>Novedad ${i + 1}
+        <textarea name="novedad" data-nov="${i}" rows="2" maxlength="${Math.floor(TOPE_TEXTO_NOVEDADES / n)}" placeholder="Sin novedades"></textarea>
+      </label>
+      <label>Foto de la novedad ${i + 1} (opcional)
+        <input type="file" accept="image/*" data-nov-foto="${i}">
+      </label>
+      <p class="ayuda" ${nov.foto ? "" : "hidden"}>Foto guardada ✓ (puedes reemplazarla)</p>
+      ${n > 1 ? `<button type="button" class="enlace-peligro" data-nov-quitar="${i}">Quitar esta novedad</button>` : ""}`;
+    div.querySelector("textarea").value = nov.texto;
+    lista.append(div);
+  });
+  $("#agregar-novedad").hidden = n >= MAX_NOVEDADES;
+}
+$("#novedades-lista").addEventListener("input", (e) => {
+  if (e.target.dataset.nov !== undefined) activo.novedades[Number(e.target.dataset.nov)].texto = e.target.value;
+});
+$("#novedades-lista").addEventListener("change", async (e) => {
+  if (e.target.dataset.nov !== undefined) { guardarActivo(); return; }
+  if (e.target.dataset.novFoto === undefined) return;
+  const i = Number(e.target.dataset.novFoto);
+  const foto = await leerFoto(e.target.files?.[0]).catch(() => null);
+  activo.novedades[i].foto = foto;
+  e.target.closest(".novedad-item").querySelector(".ayuda").hidden = !foto;
+  guardarActivo();
+});
+$("#novedades-lista").addEventListener("click", (e) => {
+  const q = e.target.closest("[data-nov-quitar]");
+  if (!q) return;
+  activo.novedades.splice(Number(q.dataset.novQuitar), 1);
+  guardarActivo();
+  renderNovedades();
+});
+$("#agregar-novedad").addEventListener("click", () => {
+  if (activo.novedades.length >= MAX_NOVEDADES) return;
+  activo.novedades.push({ texto: "", foto: null });
+  guardarActivo();
+  renderNovedades();
+});
 
 $("#form-cierre").addEventListener("input", (e) => {
   if (e.target.name !== "kmFinal") return;
@@ -573,7 +630,6 @@ $("#form-cierre").addEventListener("change", async (e) => {
       }
     }
   }
-  if (e.target.name === "fotoNovedad") activo.fotos.novedad = await leerFoto(e.target.files?.[0]).catch(() => null);
   guardarActivo();
 });
 
@@ -609,7 +665,7 @@ function resumen(t) {
     ...(t.limpieza ? ["🧽 Limpieza: realizada en este turno"] : []),
     `Combustible: ${textoCombustible(t.combustible)}`,
     `Salidas de faena: ${textoSalidas(t) || "ninguna"}`,
-    `Novedades: ${t.novedad || "sin novedades"}`,
+    ...(String(t.novedad || "").includes("\n") ? ["Novedades:", t.novedad] : [`Novedades: ${t.novedad || "sin novedades"}`]),
     ...(t.alertas?.length ? [`⚠️ ${t.alertas.join(" ")}`] : []),
   ].join("\n");
 }
@@ -629,7 +685,9 @@ $("#form-cierre").addEventListener("submit", (e) => {
   const msg = $("#msg-cierre");
   msg.textContent = "";
   const kmFinal = Number(f.kmFinal.value);
-  const novedad = f.novedad.value.trim();
+  // Las novedades con texto o con foto; si hay más de una se numeran (la foto n.º 2 se llama «novedad2», etc.).
+  const novedades = activo.novedades.map((n) => ({ texto: String(n.texto ?? "").trim(), foto: n.foto })).filter((n) => n.texto || n.foto);
+  const novedad = novedades.length === 1 ? (novedades[0].texto || "(solo foto)") : novedades.map((n, i) => `${i + 1}) ${n.texto || "(solo foto)"}`).join("\n");
 
   // No se cierra ni se genera el enlace si falta algún dato: se avisa todo lo que falta, de una vez.
   const faltan = faltantesEstado();
@@ -680,7 +738,7 @@ $("#form-cierre").addEventListener("submit", (e) => {
     ["inicio", activo.fotos.inicio],
     ...PANOS.map(([k]) => [k, activo.paneles[k]]),
     ["final", activo.fotos.final],
-    ["novedad", activo.fotos.novedad],
+    ...novedades.map((n, i) => [i === 0 ? "novedad" : `novedad${i + 1}`, n.foto]),
     ["combustible", turno.combustible?.cargo ? activo.fotos.combustible : null],
   ].filter(([, d]) => d).map(([nombre, dataUrl]) => ({ nombre, dataUrl }));
 

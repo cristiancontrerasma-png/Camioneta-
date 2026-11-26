@@ -27,7 +27,7 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmtKm = (n) => Number(n || 0).toLocaleString("es-CL");
 const fechaHora = (iso) => iso ? new Date(iso).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short", hour12: false }) : "—";
-const NOMBRES = { inicio: "Odómetro inicio", frente: "Frente", atras: "Atrás", izq: "Lado izquierdo", der: "Lado derecho", final: "Odómetro final", novedad: "Novedad", combustible: "Medidor de combustible" };
+const NOMBRES = { inicio: "Odómetro inicio", frente: "Frente", atras: "Atrás", izq: "Lado izquierdo", der: "Lado derecho", final: "Odómetro final", novedad: "Novedad 1", novedad2: "Novedad 2", novedad3: "Novedad 3", novedad4: "Novedad 4", novedad5: "Novedad 5", combustible: "Medidor de combustible" };
 
 const id = new URLSearchParams(location.search).get("id");
 if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
@@ -60,7 +60,7 @@ if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
         <div class="dato"><span>Limpieza</span><span>${t.limpieza ? "Realizada en este turno" : "No realizada en este turno"}</span></div>
         <div class="dato"><span>Combustible</span><span>${comb}</span></div>
         <div class="dato"><span>Salidas de faena</span><span>${salidas}</span></div>
-        <div class="dato"><span>Novedades</span><span>${esc(t.novedad || "Sin novedades")}</span></div>
+        <div class="dato"><span>Novedades</span><span style="white-space: pre-line">${esc(t.novedad || "Sin novedades")}</span></div>
         ${(t.alertas || []).length ? `<p class="alerta">${t.alertas.map(esc).join("<br>")}</p>` : ""}
       </div>
       <h2>Check list de la camioneta</h2>
