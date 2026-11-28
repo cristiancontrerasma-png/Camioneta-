@@ -14,7 +14,7 @@ const db = initializeFirestore(fb, { localCache: persistentLocalCache() });
 
 const TURNOS = ["Turno A", "Turno B", "Turno C", "Turno D"];
 const PANOS = [["frente", "Frente"], ["atras", "Atrás"], ["izq", "Lado izquierdo"], ["der", "Lado derecho"]];
-const MINUTOS_MAX_FOTO_INICIO = 15; // antigüedad máxima de la foto del odómetro inicial
+const MINUTOS_MAX_FOTO_INICIO = 14 * 60; // antigüedad máxima de la foto del odómetro inicial (un turno dura 12 horas; sirve la de la galería)
 // La foto del odómetro final puede venir de la galería: sirve si se tomó después de comenzar el turno (y no en el futuro).
 const fotoFinalValida = (isoHora) => {
   const t = Date.parse(isoHora);
@@ -24,7 +24,7 @@ const LADO_MAX_FOTO = 800;          // lado mayor de cada foto, en pixeles
 const PESO_MAX_FOTO = 400000;      // tamaño máximo de cada foto ya comprimida (caracteres base64)
 const MAX_RECORRIDO_KM = 500;       // sobre este recorrido se pide confirmar el km final
 // Versión visible en pantalla, para saber qué versión tiene cada teléfono.
-const VERSION = "38";
+const VERSION = "39";
 const KEY_ULTIMO_KM = "cam.ultimoCierre";
 const KEY_ULTIMO_TURNO = "cam.ultimoTurno";
 const KEY_PATENTE = "cam.patente"; // última patente usada en este teléfono, solo para ahorrar escritura
@@ -40,6 +40,9 @@ const hora = (iso) => new Date(iso).toLocaleTimeString("es-CL", { hour: "2-digit
 const fechaHora = (iso) => new Date(iso).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short", hour12: false });
 const minutosDesde = (iso) => (Date.now() - new Date(iso).getTime()) / 60000;
 const conLimite = (promesa, ms) => Promise.race([promesa, new Promise((_, rej) => setTimeout(() => rej(new Error("tiempo agotado")), ms))]);
+
+// Pide al navegador que no borre los datos del turno en curso cuando le falte espacio.
+try { navigator.storage?.persist?.(); } catch { /* si no se puede, no pasa nada */ }
 
 // ---------- Almacenamiento local (IndexedDB: las fotos no caben en localStorage) ----------
 const base = new Promise((res, rej) => {
@@ -270,7 +273,7 @@ $("#form-inicio").addEventListener("change", async (e) => {
   const h = await horaDeFoto(file);
   if (minutosDesde(h.hora) > MINUTOS_MAX_FOTO_INICIO) {
     e.target.value = "";
-    msg.textContent = `Esa foto tiene más de ${MINUTOS_MAX_FOTO_INICIO} minutos. Toma una nueva del odómetro.`;
+    msg.textContent = "Esa foto tiene más de 14 horas. Elige la foto del odómetro de este turno.";
     return;
   }
   const dataUrl = await leerFoto(file).catch(() => null);
